@@ -123,6 +123,8 @@ export interface Food {
   meals?: Meal[];
   maxServings?: number;
   estimated?: boolean;
+  /** Saved by the user as "one portion" (for example from Quick calories); weight is not shown. */
+  portionOnly?: boolean;
 }
 
 export interface Region {

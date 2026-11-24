@@ -218,3 +218,13 @@ button:not(.ghost):not(.soft):not(.danger):not(.chip):not(.option):not(.task):ho
 .pick-cat summary > span:first-child { margin-left: 0; text-align: left; color: var(--ink); font-weight: 600; flex: 1; }
 .pick-cat summary .pick-count { margin-left: 0; }
 .page .topbar { align-items: center; }
+
+/* saved foods */
+.saved-pill { margin-left: var(--s2); vertical-align: 2px; }
+.item-actions { display: flex; align-items: center; gap: var(--s2); flex: none; }
+
+/* ingredients we had to guess */
+.unknown > * + * { margin-top: var(--s3); }
+.unknown label.f { margin-bottom: 0; }
+.unknown-part { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3); border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.unknown-part b { font-size: .95rem; font-weight: 600; text-transform: capitalize; }

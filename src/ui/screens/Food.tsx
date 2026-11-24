@@ -5,7 +5,7 @@ import { MEAL_LABEL, excluded, excludedReason, sumEntries } from '../../core/nut
 import type { Food, Meal } from '../../core/types';
 import { DISH_CATEGORIES } from '../../data/dishes';
 import type { Derived } from '../../store/derive';
-import { addCustomFood, addFood, addQuickKcal, removeFood, setFoodDone } from '../../store/actions';
+import { addFood, addQuickKcal, deleteCustomFood, removeFood, saveCustomFood, setFoodDone } from '../../store/actions';
 import { dayOf, uid, type AppState } from '../../store/store';
 import { Bar, Card, Chips, useToast, Toast } from '../common';
 
@@ -32,10 +32,12 @@ export function FoodScreen({ s, d }: { s: AppState; d: Derived }) {
     const all = d.foods;
     if (!term) {
       const recents = s.recentFoodIds.map((id) => all.find((f) => f.id === id)).filter(Boolean) as Food[];
-      return { label: recents.length ? 'Recent' : 'Suggestions', list: recents.length ? recents : all.filter((f) => f.cat !== 'treat' && !excluded(f, d.profile)).slice(0, 10) };
+      const saved = s.customFoods.filter((f) => !recents.some((r) => r.id === f.id));
+      const list = [...recents, ...saved].slice(0, 14);
+      return { label: list.length ? (saved.length ? 'Recent and saved' : 'Recent') : 'Suggestions', list: list.length ? list : all.filter((f) => f.cat !== 'treat' && !excluded(f, d.profile)).slice(0, 10) };
     }
     return { label: 'Results', list: all.filter((f) => f.name.toLowerCase().includes(term)).slice(0, 25) };
-  }, [q, d.foods, s.recentFoodIds, d.profile]);
+  }, [q, d.foods, s.recentFoodIds, s.customFoods, d.profile]);
 
   const g = grams ?? Math.round((pick?.servingG ?? 100) * servings);
   const preview = pick ? { kcal: Math.round((pick.kcal * g) / 100), p: Math.round((pick.p * g) / 10) / 10 } : null;
@@ -67,10 +69,13 @@ export function FoodScreen({ s, d }: { s: AppState; d: Derived }) {
             {results.list.map((f) => (
               <div class="item" key={f.id}>
                 <div>
-                  <b>{f.name}</b>
+                  <b>{f.name}</b>{f.id.startsWith('custom-') && <span class="pill neutral saved-pill">Saved</span>}
                   <div class="small muted">{f.servingLabel}: {Math.round((f.kcal * f.servingG) / 100)} kcal · {Math.round((f.p * f.servingG) / 100)}g protein{conflict(f) ? ' · conflicts with your diet or allergies' : ''}</div>
                 </div>
-                <button class="small" onClick={() => { setPick(f); setServings(1); setGrams(null); }}>Add</button>
+                <div class="item-actions">
+                  {f.id.startsWith('custom-') && <button class="ghost small" aria-label={`Delete saved food ${f.name}`} onClick={() => { if (confirm(`Delete "${f.name}" from your saved foods?`)) deleteCustomFood(f.id); }}>Delete</button>}
+                  <button class="small" onClick={() => { setPick(f); setServings(1); setGrams(null); }}>Add</button>
+                </div>
               </div>
             ))}
             {!results.list.length && <p class="muted small">Not in the list? Describe it and I will estimate the calories.</p>}
@@ -87,8 +92,8 @@ export function FoodScreen({ s, d }: { s: AppState; d: Derived }) {
           <div class="row">
             <div class="grow"><label class="f" for="sv">Servings <small>({pick.servingLabel})</small></label>
               <input id="sv" type="number" inputMode="decimal" step="0.5" min="0.25" value={servings} onInput={(e) => { setServings(+(e.target as HTMLInputElement).value); setGrams(null); }} /></div>
-            <div class="grow"><label class="f" for="gr">or grams</label>
-              <input id="gr" type="number" inputMode="numeric" value={g} onInput={(e) => setGrams(+(e.target as HTMLInputElement).value)} /></div>
+            {!pick.portionOnly && <div class="grow"><label class="f" for="gr">or grams</label>
+              <input id="gr" type="number" inputMode="numeric" value={g} onInput={(e) => setGrams(+(e.target as HTMLInputElement).value)} /></div>}
           </div>
           <div class="banner info">≈ <b>{preview.kcal} kcal</b> · {preview.p}g protein</div>
           {conflict(pick) && <div class="banner warn small">This conflicts with your diet or allergies ({conflict(pick)}).</div>}
@@ -99,17 +104,27 @@ export function FoodScreen({ s, d }: { s: AppState; d: Derived }) {
         </Card>
       )}
 
-      {mode === 'quick' && <QuickKcal onClose={() => setMode('search')} onAdd={(n, k) => { addQuickKcal(date, n, k, meal); say('Added'); setMode('search'); }} />}
+      {mode === 'quick' && <QuickKcal onClose={() => setMode('search')} onAdd={(n, k) => {
+        if (n) {
+          const saved = saveCustomFood({ id: `custom-${uid()}`, name: n, cat: 'carb', kcal: k, p: 0, c: 0, f: 0, servingG: 100, servingLabel: '1 portion', meals: ['b', 'l', 'd', 's'], portionOnly: true });
+          addFood(date, saved, 100, meal);
+          say(`Added and saved ${n}`);
+        } else {
+          addQuickKcal(date, 'Quick add', k, meal);
+          say('Added');
+        }
+        setMode('search');
+      }} />}
       {mode === 'estimate' && (
         <EstimatePanel
           initial={q}
           meal={meal}
           profile={d.profile}
           onClose={() => setMode('search')}
-          onAdd={(food, grams2, save) => {
-            if (save) addCustomFood(food);
-            addFood(date, food, grams2, meal);
-            say(`Added ${food.name}`);
+          onAdd={(food, grams2) => {
+            const saved = saveCustomFood(food);
+            addFood(date, saved, grams2, meal);
+            say(`Added and saved ${food.name}`);
             setMode('search');
             setQ('');
           }}
@@ -150,7 +165,7 @@ function QuickKcal({ onAdd, onClose }: { onAdd: (name: string, kcal: number) => 
       <input id="qn" value={n} onInput={(e) => setN((e.target as HTMLInputElement).value)} placeholder="e.g. Birthday cake slice" />
       <label class="f" for="qk">Calories (estimate is fine)</label>
       <input id="qk" type="number" inputMode="numeric" value={k} onInput={(e) => setK((e.target as HTMLInputElement).value)} />
-      <div class="row"><button class="ghost grow" onClick={onClose}>Cancel</button><button class="grow" disabled={!(+k > 0)} onClick={() => onAdd(n.trim() || 'Quick add', +k)}>Add</button></div>
+      <div class="row"><button class="ghost grow" onClick={onClose}>Cancel</button><button class="grow" disabled={!(+k > 0)} onClick={() => onAdd(n.trim(), +k)}>Add</button></div>
     </Card>
   );
 }
@@ -167,17 +182,18 @@ function EstimatePanel({ initial, meal, profile, onClose, onAdd }: {
   meal: Meal;
   profile: Derived['profile'];
   onClose: () => void;
-  onAdd: (food: Food, grams: number, save: boolean) => void;
+  onAdd: (food: Food, grams: number) => void;
 }) {
   const [text, setText] = useState(initial);
   const [size, setSize] = useState<Size>('medium');
   const [category, setCategory] = useState<string>('');
+  const [partCats, setPartCats] = useState<Record<string, string>>({});
   const [gramsStr, setGramsStr] = useState('');
   const [manual, setManual] = useState(false);
   const [mv, setMv] = useState({ kcal: '', p: '', c: '', f: '' });
   const grams = +gramsStr > 0 ? +gramsStr : undefined;
 
-  const est = estimateFood(text, { size, grams, category: category || undefined });
+  const est = estimateFood(text, { size, grams, category: category || undefined, partCategories: partCats });
   const needsCategory = text.trim().length > 1 && !est;
   const ideas = text.trim().length > 1 ? suggestDishes(text, 4) : [];
   const food = est ? estimateToFood(est, `custom-${uid()}`) : null;
@@ -191,7 +207,7 @@ function EstimatePanel({ initial, meal, profile, onClose, onAdd }: {
   return (
     <Card title="Describe what you ate">
       <label class="f" for="est-text">What did you eat or drink?</label>
-      <input id="est-text" value={text} autoFocus placeholder="e.g. chicken adobo with rice, 2 slices of pizza, milk tea" onInput={(e) => { setText((e.target as HTMLInputElement).value); setCategory(''); }} />
+      <input id="est-text" value={text} autoFocus placeholder="e.g. chicken adobo with rice, 2 slices of pizza, milk tea" onInput={(e) => { setText((e.target as HTMLInputElement).value); setCategory(''); setPartCats({}); }} />
       {ideas.length > 0 && !est?.matched.length && <div class="chips">{ideas.map((x) => <button type="button" class="chip" key={x.name} onClick={() => setText(x.name)}>{x.name}</button>)}</div>}
 
       {needsCategory && (
@@ -213,6 +229,19 @@ function EstimatePanel({ initial, meal, profile, onClose, onAdd }: {
             <div class="estimate-macros"><span><b>{Math.round(est.p)} g</b> protein</span><span><b>{Math.round(est.c)} g</b> carbs</span><span><b>{Math.round(est.f)} g</b> fat</span></div>
           </div>
           <p class="small muted">{confLabel}: {est.matched.join(' + ')}. Real meals vary by about 25%.{est.note ? ` ${est.note}.` : ''}</p>
+          {est.unmatched.length > 0 && (
+            <div class="unknown">
+              <label class="f">Not in my list. Is this right?</label>
+              {est.unmatched.map((u) => (
+                <div class="unknown-part" key={u.text}>
+                  <b>{u.text}</b>
+                  <select aria-label={'What is ' + u.text} value={u.category} onChange={(e) => setPartCats({ ...partCats, [u.text]: (e.target as HTMLSelectElement).value })}>
+                    {DISH_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
           {clash && <div class="banner warn small">This may conflict with your diet or allergies ({clash}).</div>}
           <details>
             <summary>Adjust the portion in grams</summary>
@@ -221,9 +250,9 @@ function EstimatePanel({ initial, meal, profile, onClose, onAdd }: {
           </details>
           <div class="row wrap">
             <button class="ghost grow" onClick={onClose}>Cancel</button>
-            <button class="grow" onClick={() => onAdd(food, food.servingG, false)}>Add to {MEAL_LABEL[meal]}</button>
+            <button class="grow" onClick={() => onAdd(food, food.servingG)}>Add to {MEAL_LABEL[meal]}</button>
           </div>
-          <button class="soft block" onClick={() => onAdd(food, food.servingG, true)}>Add and save for next time</button>
+          <p class="small muted">Saved automatically, so you can add it again later by name.</p>
         </>
       )}
 
@@ -240,7 +269,7 @@ function EstimatePanel({ initial, meal, profile, onClose, onAdd }: {
           </details>
           <div class="row">
             <button class="ghost grow" onClick={onClose}>Cancel</button>
-            <button class="grow" disabled={!manualFood} onClick={() => manualFood && onAdd(manualFood, 100, true)}>Add 100 g</button>
+            <button class="grow" disabled={!manualFood} onClick={() => manualFood && onAdd(manualFood, 100)}>Add 100 g</button>
           </div>
         </>
       )}

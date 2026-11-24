@@ -6,7 +6,7 @@ export function entryFor(food: Food, grams: number, meal: Meal): Omit<FoodEntry,
   return {
     foodId: food.id,
     name: food.name,
-    grams: Math.round(grams),
+    grams: food.portionOnly ? 0 : Math.round(grams),
     kcal: Math.round(food.kcal * k),
     p: Math.round(food.p * k * 10) / 10,
     c: Math.round(food.c * k * 10) / 10,

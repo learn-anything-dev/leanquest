@@ -2,7 +2,7 @@ import { daysBetween, today } from '../core/dates';
 import type { DayLog, Food, Meal, PlanChoice, Profile, WorkoutItem } from '../core/types';
 import { entryFor } from '../core/nutrition';
 import { ladderFor, progress, type Pattern } from '../data/exercises';
-import { uid, update } from './store';
+import { getState, uid, update } from './store';
 
 function day(s: { days: Record<string, DayLog> }, date: string): DayLog {
   return (s.days[date] ??= { food: [], waterMl: 0 });
@@ -65,6 +65,26 @@ export function toggleChallenge(date: string) {
 export function setFoodDone(date: string, v: boolean) {
   update((s) => {
     day(s, date).foodDone = v;
+  });
+}
+
+/** Saves a food the user created so it shows up in search next time. Same name (any case) updates the saved one. */
+export function saveCustomFood(f: Food): Food {
+  const name = f.name.trim().toLowerCase();
+  const existing = getState().customFoods.find((x) => x.name.trim().toLowerCase() === name);
+  const saved: Food = existing ? { ...f, id: existing.id } : f;
+  update((s) => {
+    const i = s.customFoods.findIndex((x) => x.id === saved.id);
+    if (i >= 0) s.customFoods[i] = saved;
+    else s.customFoods.unshift(saved);
+  });
+  return saved;
+}
+
+export function deleteCustomFood(id: string) {
+  update((s) => {
+    s.customFoods = s.customFoods.filter((x) => x.id !== id);
+    s.recentFoodIds = s.recentFoodIds.filter((x) => x !== id);
   });
 }
 

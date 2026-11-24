@@ -209,3 +209,34 @@ describe('activities, countries and diets', () => {
     expect(rulesFor({ diets: ['vegan'], hasAllergies: false, allergens: [], avoidFoods: [] }).excludeTags.has('dairy')).toBe(true);
   });
 });
+
+describe('food estimator: ingredients and sauces', () => {
+  it('recognises every part of "Cucumber Salad with Tuna and Japanese Mayo"', () => {
+    const e = estimateFood('Cucumber Salad with Tuna and Japanese Mayo')!;
+    expect(e.unmatched).toHaveLength(0);
+    expect(e.matched.length).toBe(3);
+    expect(e.matched.join(' ')).toMatch(/tuna/i);
+    expect(e.matched.join(' ')).toMatch(/japanese mayo/i);
+    expect(e.kcal).toBeGreaterThan(180);
+    expect(e.kcal).toBeLessThan(330);
+  });
+  it('reads units: 2 tbsp mayo is 30 g, 100g chicken is 100 g', () => {
+    expect(estimateFood('2 tbsp mayo')!.grams).toBe(30);
+    expect(estimateFood('100g chicken')!.grams).toBe(100);
+    expect(estimateFood('1 tsp olive oil')!.kcal).toBeGreaterThan(35);
+  });
+  it('never drops an unknown ingredient: it is estimated from a guessed category the user can change', () => {
+    const e = estimateFood('rice with xyzzy dipping sauce')!;
+    expect(e.unmatched).toHaveLength(1);
+    expect(e.unmatched[0].category).toBe('sauce');
+    const withFat = estimateFood('rice with xyzzy dipping sauce', { partCategories: { 'xyzzy dipping sauce': 'fat' } })!;
+    expect(withFat.unmatched[0].category).toBe('fat');
+    expect(withFat.kcal).toBeGreaterThan(e.kcal);
+  });
+  it('knows common condiments and seafood', () => {
+    for (const name of ['kewpie', 'ketchup', 'soy sauce', 'sriracha', 'salmon', 'shrimp', 'kimchi', 'cream cheese']) {
+      const e = estimateFood(name)!;
+      expect(e && e.unmatched.length === 0).toBe(true);
+    }
+  });
+});
