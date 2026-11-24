@@ -99,7 +99,6 @@ export interface PatternState {
 export interface Food {
   id: string;
   name: string;
-  local?: string;
   cat: 'protein' | 'carb' | 'veg' | 'fruit' | 'fat' | 'dairy' | 'treat' | 'drink';
   kcal: number; // per 100 g (or 100 ml)
   p: number;

@@ -1,0 +1,125 @@
+/* Layout & spacing system. 4px base scale; every gap below is one of these steps. */
+:root { --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; }
+
+html, body { overflow-x: hidden; }
+#app { padding-left: var(--s4); padding-right: var(--s4); padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+@media (min-width: 640px) { #app { padding-left: var(--s5); padding-right: var(--s5); } }
+
+/* page rhythm */
+h1 { margin: var(--s6) 0 var(--s5); }
+
+/* cards: one inner rhythm instead of per-element margins */
+.card { padding: var(--s5) 20px; margin: 0; }
+.card > * { margin-top: 0; margin-bottom: 0; }
+.card > * + * { margin-top: var(--s4); }
+
+.card > p + p { margin-top: var(--s2); }
+:where(.card) p { margin: 0; }
+.card.row > *, label.row > * { margin-top: 0; }
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); min-height: 28px; }
+.card-head h2 { margin: 0; }
+.card-head + * { margin-top: var(--s4); }
+.card ul { margin: 0; }
+.stack > * + * { margin-top: var(--s4); }
+.stack > h1 + * { margin-top: 0; }
+
+/* forms */
+label.f { margin: var(--s4) 0 var(--s2); }
+.card > label.f:first-child, .grid2 > div > label.f:first-child, label.f:first-child { margin-top: 0; }
+.card-head + label.f { margin-top: var(--s4); }
+.card > .chips + label.f, .card > .chips + .chips { margin-top: var(--s4); }
+.row > input, .row > select { flex: 1; min-width: 0; }
+.row > button { flex: none; }
+.row.wrap { gap: var(--s2); }
+.row.wrap > button.soft { flex: 1 1 0; }
+a.btn.block, .btn.block { display: block; width: 100%; }
+.card > button.block, .card > a.block { margin-top: var(--s4); }
+.grid2 { gap: var(--s4); } .grid3 { gap: var(--s3); }
+.grid3 .kpi, .grid2 .kpi { min-width: 0; }
+.center .kpi { text-align: center; }
+.kpi span { display: block; margin-top: var(--s1); }
+.ring { margin: 0 auto; }
+
+/* lists */
+.list > .item { padding: var(--s3) 0; }
+.list > .item:first-child { padding-top: 0; } .list > .item:last-child { padding-bottom: 0; }
+.list > .item > div, .list > .item > span:first-child { min-width: 0; }
+.nowrap { white-space: nowrap; }
+.bullets { padding-left: 20px; margin: 0; } .bullets li + li { margin-top: var(--s2); }
+.banner { margin: 0; }
+.card > .banner, .stack > .banner { margin-top: var(--s4); }
+.banner ul { margin-top: var(--s2); }
+.banner b + p, .banner p + p { margin-top: var(--s2); }
+
+/* accordion */
+.card details { padding: var(--s3) 0; border-top: 1px solid var(--line); margin: 0; }
+.card details:first-child { padding-top: 0; border-top: 0; } .card details:last-child { padding-bottom: 0; }
+.card details + details { margin-top: 0; }
+details summary { list-style: none; display: flex; justify-content: space-between; align-items: center; gap: var(--s3); cursor: pointer; font-weight: 700; }
+details summary::-webkit-details-marker { display: none; }
+details summary::after { content: '+'; font-size: 1.25rem; font-weight: 400; color: var(--muted); line-height: 1; flex: none; }
+details[open] summary::after { content: '\2013'; }
+details summary > span { font-weight: 400; color: var(--muted); margin-left: auto; text-align: right; }
+details p { margin-top: var(--s2); }
+
+/* segmented plan switch */
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }
+.seg button { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s1); padding: var(--s3) var(--s4); border-radius: 12px; background: #fff; color: var(--ink); border: 1px solid var(--line-2); text-align: left; min-height: 64px; }
+.seg button span { font-size: .85rem; font-weight: 400; color: var(--muted); }
+.seg button:hover { border-color: var(--ink); background: #fff; }
+.seg button.on { background: var(--ink); border-color: var(--ink); color: #fff; } .seg button.on span { color: #c9d0d5; }
+
+/* meal plan */
+.meal + .meal { margin-top: var(--s5); }
+.meal-title { font-family: var(--label); font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding-bottom: var(--s2); border-bottom: 1px solid var(--line-2); }
+.meal-row { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s4); padding: var(--s3) 0; border-bottom: 1px solid var(--line); }
+.meal-row:last-child { border-bottom: 0; }
+.meal-name { display: flex; flex-direction: column; min-width: 0; }
+.meal-meta { display: flex; flex-direction: column; align-items: flex-end; flex: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.meal-total { display: flex; flex-direction: column; gap: var(--s2); padding-top: var(--s4); border-top: 1px solid var(--ink); }
+.meal-total .bar { margin-top: var(--s1); }
+
+/* full-bleed dark bands (page edge to page edge, content aligned to the column) */
+.masthead, .splash { width: 100vw; margin-left: calc(50% - 50vw); margin-right: 0; border-radius: 0 0 24px 24px; padding: var(--s6) calc(50vw - 50%) var(--s5); }
+.masthead { margin-bottom: var(--s5); }
+.masthead h1, .splash h1 { margin: var(--s2) 0 var(--s2); }
+.masthead .stats { margin-top: var(--s5); gap: var(--s5); }
+.masthead .stats span { display: block; margin-top: var(--s1); }
+.splash { margin-bottom: var(--s5); padding-top: var(--s5); }
+.splash .label { margin-bottom: var(--s2); }
+.steps { margin: var(--s5) 0 var(--s4); }
+
+/* wizard navigation */
+.wizard-nav { margin-top: var(--s5); }
+.wizard-nav button { min-width: 112px; }
+
+/* plan option cards */
+.plan { padding: var(--s4) 20px; }
+.plan > .row { margin-bottom: var(--s1); }
+.plan .big { margin: var(--s1) 0 var(--s2); }
+.plan ul { padding-left: 20px; margin: var(--s2) 0 0; } .plan li + li { margin-top: var(--s1); }
+.plan p { margin: 0; }
+
+/* nav + toast */
+nav.tabs a { padding-top: var(--s3); padding-bottom: var(--s3); }
+.toast { bottom: calc(84px + env(safe-area-inset-bottom)); }
+.disclaimer { margin: var(--s5) 0 0; }
+.topbar { margin-bottom: 0; }
+
+/* label sits tight to its field; checkbox rows */
+.card > label.f + *, .grid2 > div > label.f + * { margin-top: 0; }
+input[type=checkbox] { width: 22px; height: 22px; min-height: 22px; min-width: 22px; flex: none; padding: 0; margin: 0; }
+.row > input[type=checkbox] { flex: none; }
+label.row { align-items: flex-start; gap: var(--s3); }
+label.row > span { flex: 1; min-width: 0; line-height: 1.4; }
+label.row > input[type=checkbox] { margin-top: 1px; }
+label.check-card { padding: var(--s4) 20px; }
+
+/* equal-width chip row (meal picker) */
+.chips.fit { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s2); }
+.chips.fit .chip { padding: var(--s2) var(--s1); text-align: center; font-size: .85rem; }
+.daysum { display: flex; flex-direction: column; gap: var(--s1); }
+.daysum .kpi b small { font-family: inherit; font-size: .9rem; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+
+button, .btn { white-space: nowrap; }
+.row.wrap > button.soft { padding-left: var(--s3); padding-right: var(--s3); }

@@ -1,0 +1,55 @@
+/* Mobile defaults for the shared nav markup */
+nav.tabs .brand { display: none; }
+nav.tabs .links { display: flex; width: 100%; }
+nav.tabs a.desk { display: none; }
+nav.tabs a span { display: block; }
+.wizard { max-width: 640px; margin: 0 auto; }
+.narrow { max-width: 560px; margin-left: auto; margin-right: auto; }
+
+/* Tablet: two-column cards */
+@media (min-width: 720px) {
+  .page .stack { display: block; columns: 2; column-gap: var(--s5); }
+  .page .stack > * { break-inside: avoid; margin: 0 0 var(--s5); }
+  .page .stack > h1, .page .stack > .span-all, .page .stack > .topbar { column-span: all; }
+  .page .stack > h1 { margin: var(--s6) 0 var(--s5); }
+  .page .stack > .topbar { align-items: center; margin-bottom: 0; }
+  .page .stack > .topbar h1 { margin: var(--s6) 0 var(--s5); }
+  .page .stack.narrow { columns: auto; max-width: 560px; }
+  .page .stack.narrow > * { margin: 0 0 var(--s4); }
+}
+
+/* Desktop: website layout with a top navigation bar */
+@media (min-width: 960px) {
+  body { font-size: 17px; }
+  #app { max-width: 1120px; padding: 0 var(--s6) 72px; }
+
+  nav.tabs { position: sticky; top: 0; bottom: auto; left: auto; right: auto; width: 100vw; margin-left: calc(50% - 50vw); background: var(--dark); backdrop-filter: none; padding: 0; z-index: 20; }
+  nav.tabs .inner { max-width: 1120px; margin: 0 auto; padding: 0 var(--s6); height: 68px; align-items: center; justify-content: space-between; }
+  nav.tabs .brand { display: block; font-family: var(--serif); font-size: 1.4rem; font-weight: 500; letter-spacing: -.01em; color: #fff; text-decoration: none; flex: none; padding: 0; }
+  nav.tabs .links { width: auto; align-items: center; gap: var(--s5); }
+  nav.tabs a { flex: none; padding: var(--s2) 0; font-size: .82rem; letter-spacing: .12em; border-bottom: 2px solid transparent; }
+  nav.tabs a svg { display: none; }
+  nav.tabs a.on { color: var(--on-dark-muted); }
+  nav.tabs a:hover { color: #fff; }
+  nav.tabs a.on-d { color: #fff; border-bottom-color: #fff; }
+  nav.tabs a.mob { display: none; }
+  nav.tabs a.desk { display: block; }
+
+  h1 { font-size: 2.6rem; }
+  .page .stack > h1, .page .stack > .topbar h1 { margin-top: 56px; }
+  .masthead { padding-top: 56px; padding-bottom: 48px; margin-bottom: 40px; border-radius: 0 0 32px 32px; }
+  .masthead h1 { font-size: 3.6rem; margin: var(--s3) 0 var(--s3); }
+  .masthead .coach { font-size: 1.15rem; max-width: 560px; }
+  .masthead .stats { margin-top: var(--s6); gap: 48px; }
+  .masthead .stats b { font-size: 2.2rem; }
+  .card { padding: 28px; }
+  .splash h1 { font-size: 3rem; }
+  .toast { bottom: var(--s6); }
+  .disclaimer { margin-top: 56px; }
+  .ring { width: 176px; height: 176px; } .ring svg { width: 176px; height: 176px; }
+}
+
+/* Wide desktop: three columns on the dashboard */
+@media (min-width: 1100px) {
+  .page .stack.dash { columns: 3; }
+}

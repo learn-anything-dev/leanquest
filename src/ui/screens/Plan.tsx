@@ -27,39 +27,44 @@ export function PlanScreen({ s, d }: { s: AppState; d: Derived }) {
           <div class="kpi"><b>{d.targets.carbG} g / {d.targets.fatG} g</b><span>carbs / fat (flexible)</span></div>
           <div class="kpi"><b>{(d.targets.waterMl / 1000).toFixed(1)} L</b><span>water</span></div>
         </div>
-        <p class="small muted" style="margin:8px 0 0">BMI {bmi(d.currentKg, p.heightCm).toFixed(1)} ({bmiCategory(bmi(d.currentKg, p.heightCm))}). Estimated maintenance {f.tdee} kcal. Minimum I'll ever plan: {f.floor} kcal. Protein is based on an adjusted body weight, as is usual for higher body weights, and carbs/fat are just the leftover calories.</p>
+        <p class="small muted">BMI {bmi(d.currentKg, p.heightCm).toFixed(1)} · Maintenance about {f.tdee} kcal · Minimum {f.floor} kcal</p>
       </Card>
 
       {showChoice && (
         <Card title="Which plan?">
-          <p class="small muted">You can switch any time. The tracker, targets and projection follow the one you choose.</p>
-          <div class="grid2">
-            <button class={p.choice === 'realistic' ? '' : 'ghost'} onClick={() => setChoice('realistic')}>Realistic<br /><span class="small">{f.realistic.intake} kcal</span></button>
-            <button class={p.choice === 'goal' ? '' : 'ghost'} onClick={() => setChoice('goal')}>Your goal<br /><span class="small">{f.goal.intake} kcal</span></button>
+          <div class="seg" role="radiogroup" aria-label="Choose plan">
+            <button type="button" role="radio" aria-checked={p.choice === 'realistic'} class={p.choice === 'realistic' ? 'on' : ''} onClick={() => setChoice('realistic')}><b>Realistic</b><span>{f.realistic.intake} kcal</span></button>
+            <button type="button" role="radio" aria-checked={p.choice === 'goal'} class={p.choice === 'goal' ? 'on' : ''} onClick={() => setChoice('goal')}><b>Your goal</b><span>{f.goal.intake} kcal</span></button>
           </div>
-          {p.choice === 'goal' && <div class="banner warn small"><b>Risks:</b><ul style="margin:4px 0 0;padding-left:18px">{f.risks.map((r) => <li key={r}>{r}</li>)}</ul></div>}
+          {p.choice === 'goal' && <div class="banner warn small"><b>Risks</b><ul class="bullets">{f.risks.map((r) => <li key={r}>{r}</li>)}</ul></div>}
         </Card>
       )}
 
-      <Card title={`Budget meal ideas (${d.region.name})`} right={<span class="small muted">{cur}{p.budgetPerDay}/day</span>}>
-        <p class="small muted" style="margin:0 0 6px">{meal.note}</p>
+      <Card title={`Meal ideas`} right={<span class="small muted">{cur}{p.budgetPerDay}/day</span>}>
+        {!meal.withinBudget || !meal.proteinMet ? <p class="small muted">{meal.note}</p> : null}
         {(['b', 'l', 'd', 's'] as const).map((m) => {
           const items = meal.items.filter((i) => i.meal === m);
           if (!items.length) return null;
           return (
-            <div key={m} style="margin-bottom:8px"><b class="small">{MEAL_LABEL[m]}</b>
+            <div class="meal" key={m}>
+              <div class="meal-title">{MEAL_LABEL[m]}</div>
               {items.map((i) => (
-                <div class="row between small" key={i.food.id + i.meal}><span>{i.servings}× {i.food.servingLabel} {i.food.name}{i.food.local ? ` (${i.food.local})` : ''}</span><span class="muted">{i.kcal} kcal · {cur}{i.cost.toFixed(0)}</span></div>
+                <div class="meal-row" key={i.food.id + i.meal}>
+                  <div class="meal-name"><b>{i.food.name}</b><span class="muted small">{i.servings} × {i.food.servingLabel}</span></div>
+                  <div class="meal-meta"><span>{i.kcal} kcal</span><span class="muted small">{cur}{i.cost.toFixed(0)}</span></div>
+                </div>
               ))}
             </div>
           );
         })}
-        <div class="row between"><b>{meal.kcal} kcal · {meal.protein} g protein</b><b>{cur}{meal.cost.toFixed(0)}</b></div>
-        <Bar value={meal.cost} max={p.budgetPerDay} tone={meal.withinBudget ? undefined : 'bad'} />
-        <p class="small muted" style="margin:6px 0 0">Add your cooking oil, and season to taste. Prices are estimates.</p>
-        <button class="soft small" style="margin-top:8px" onClick={() => setPricing(!pricing)}>{pricing ? 'Hide prices' : 'Edit food prices'}</button>
+        <div class="meal-total">
+          <div class="row between"><b>Total</b><b>{meal.kcal} kcal · {meal.protein} g protein</b></div>
+          <div class="row between small muted"><span>Cost</span><span>{cur}{meal.cost.toFixed(0)} of {cur}{p.budgetPerDay}</span></div>
+          <Bar value={meal.cost} max={p.budgetPerDay} tone={meal.withinBudget ? undefined : 'bad'} />
+        </div>
+        <button class="soft small" onClick={() => setPricing(!pricing)}>{pricing ? 'Hide prices' : 'Edit food prices'}</button>
         {pricing && (
-          <div class="list" style="margin-top:8px">
+          <div class="list">
             {d.region.foods.filter((x) => x.cat !== 'treat' && x.cat !== 'drink').map((x) => (
               <div class="item" key={x.id}>
                 <span class="small">{x.name}<br /><span class="muted">per {x.servingLabel}</span></span>
@@ -72,11 +77,11 @@ export function PlanScreen({ s, d }: { s: AppState; d: Derived }) {
       </Card>
 
       <Card title="Cheap-protein cheat sheet">
-        <ul class="small" style="margin:0;padding-left:18px">
+        <div class="list">
           {[...d.region.foods].filter((x) => x.p >= 7 && ['protein', 'dairy'].includes(x.cat)).sort((a, b) => d.priceOf(a) / a.p - d.priceOf(b) / b.p).slice(0, 5).map((x) => (
-            <li key={x.id}>{x.name}: {cur}{((d.priceOf(x) / x.p) * 10).toFixed(1)} per 10 g protein</li>
+            <div class="item" key={x.id}><span>{x.name}</span><span class="muted nowrap">{cur}{((d.priceOf(x) / x.p) * 10).toFixed(1)} / 10 g</span></div>
           ))}
-        </ul>
+        </div>
       </Card>
     </div>
   );

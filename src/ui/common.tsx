@@ -3,12 +3,12 @@ import { useEffect, useState } from 'preact/hooks';
 import { formatShort, parseDate } from '../core/dates';
 import type { WeightPoint } from '../core/progress';
 
-export function Card({ children, title, right }: { children: ComponentChildren; title?: string; right?: ComponentChildren }) {
+export function Card({ children, title, right, cls }: { children: ComponentChildren; title?: string; right?: ComponentChildren; cls?: string }) {
   return (
-    <section class="card">
+    <section class={`card ${cls ?? ''}`}>
       {title && (
-        <div class="row between" style="margin-bottom:6px">
-          <h2 style="margin:0">{title}</h2>
+        <div class="card-head">
+          <h2>{title}</h2>
           {right}
         </div>
       )}
@@ -45,15 +45,16 @@ export function Ring({ value, max, label, sub }: { value: number; max: number; l
   );
 }
 
-export function Chips<T extends string>({ options, value, onChange, multi }: {
+export function Chips<T extends string>({ options, value, onChange, multi, fit }: {
   options: { id: T; label: string }[];
   value: T | T[];
   onChange: (v: T) => void;
   multi?: boolean;
+  fit?: boolean;
 }) {
   const on = (id: T) => (multi ? (value as T[]).includes(id) : value === id);
   return (
-    <div class="chips" role={multi ? 'group' : 'radiogroup'}>
+    <div class={`chips ${fit ? "fit" : ""}`} role={multi ? 'group' : 'radiogroup'}>
       {options.map((o) => (
         <button type="button" key={o.id} class={`chip ${on(o.id) ? 'on' : ''}`} aria-pressed={on(o.id)} onClick={() => onChange(o.id)}>
           {o.label}
@@ -79,11 +80,11 @@ export function useToast(): [string | null, (m: string) => void] {
 
 export function Confetti({ show }: { show: boolean }) {
   if (!show) return null;
-  const bits = ['🎉', '⭐', '💚', '✨', '🏅'];
+  const bits = ['#0f766e', '#d97706', '#1d4ed8', '#be185d', '#15803d'];
   return (
     <div class="confetti" aria-hidden="true">
       {Array.from({ length: 28 }, (_, i) => (
-        <i key={i} style={`left:${(i * 37) % 100}%;animation-delay:${(i % 9) * 0.12}s`}>{bits[i % bits.length]}</i>
+        <i key={i} style={`left:${(i * 37) % 100}%;animation-delay:${(i % 9) * 0.12}s;background:${bits[i % bits.length]}`} />
       ))}
     </div>
   );

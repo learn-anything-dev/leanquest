@@ -122,15 +122,15 @@ function detail(
 export function riskList(pctPerWeek: number, atFloor: boolean): string[] {
   const r: string[] = [];
   if (pctPerWeek > 1) {
-    r.push('Faster-than-1%-per-week loss is linked with more muscle loss, which lowers your resting burn and makes regain easier.');
-    r.push('Rapid weight loss raises the chance of gallstones.');
+    r.push('Faster than 1% a week costs muscle and makes regain easier.');
+    r.push('Raises gallstone risk.');
   }
   if (atFloor) {
-    r.push('Eating at the minimum is hard to keep up: expect strong hunger, low energy, poor sleep and mood dips. Most people who crash-diet regain the weight.');
-    r.push('Very low intakes make it harder to get enough protein, iron, calcium and fibre. Hair shedding, dizziness and, for women, missed periods can follow.');
+    r.push('Eating at the minimum is hard to sustain: hunger, low energy, poor sleep.');
+    r.push('Very low intake makes it hard to get enough protein, iron and calcium.');
   }
   if (pctPerWeek > 1.5) {
-    r.push('At this pace you would need medical supervision (this is the territory of supervised very-low-calorie programs, not self-guided plans).');
+    r.push('Beyond this pace you would need medical supervision.');
   }
   return r;
 }

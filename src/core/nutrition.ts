@@ -131,7 +131,7 @@ export function planDay(
   const withinBudget = cost <= budget;
   const proteinMet = prot >= proteinTarget * 0.9;
   let note = 'A suggested day. Swap foods freely: aim for the calorie and protein numbers.';
-  if (!withinBudget) note = 'This is the cheapest mix I can find for your targets, and it is over your budget. Options: raise the budget, accept a slightly lower protein (the app will show your minimum), or lean on eggs, monggo/lentils and canned fish.';
+  if (!withinBudget) note = 'This is the cheapest mix I can find for your targets, and it is over your budget. Options: raise the budget, accept a slightly lower protein (the app will show your minimum), or lean on eggs, beans or lentils and canned fish.';
   else if (!proteinMet) note = 'Within budget, but protein is under target. Eggs, tofu, beans/lentils and canned fish are the cheapest protein boosts.';
   return { items, kcal: Math.round(kcal), protein: Math.round(prot), cost: Math.round(cost * 100) / 100, withinBudget, proteinMet, note };
 }

@@ -1,0 +1,48 @@
+/* Typography: Manrope for display numbers/headings, Inter for everything else. Loaded last. */
+:root {
+  --display: 'Manrope', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --serif: var(--display);
+  --label: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+html, body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-feature-settings: 'cv11', 'ss01'; letter-spacing: -0.003em; }
+button, input, select, textarea { font-family: inherit; }
+
+h1, h3, .kpi b, .ring .mid b, .plan .big, .timer, .masthead .stats b, .avatar { font-family: var(--display); font-weight: 700; letter-spacing: -0.03em; }
+h1 { font-size: 1.9rem; line-height: 1.15; }
+h3 { font-weight: 700; letter-spacing: -0.02em; font-size: 1.05rem; }
+.kpi b { font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.ring .mid b { font-size: 2.3rem; font-weight: 800; }
+.plan .big { font-size: 1.9rem; }
+.timer { font-weight: 800; }
+.masthead h1, .splash h1 { font-weight: 800; letter-spacing: -0.035em; }
+.masthead .stats b { font-size: 1.6rem; }
+
+/* small uppercase labels */
+h2, label.f, .pill, .meal-title, .masthead .label, .splash .label, .masthead .stats span, .link-card b, nav.tabs a {
+  font-family: var(--label); font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em;
+}
+h2 { font-size: 0.74rem; color: var(--muted); margin: 0; }
+label.f { font-size: 0.72rem; color: var(--ink-2); }
+label.f small { font-family: var(--label); text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 0.8rem; }
+.pill { font-size: 0.68rem; padding: 4px 10px; }
+.meal-title { font-size: 0.72rem; }
+.masthead .label, .splash .label { font-size: 0.72rem; }
+.masthead .stats span { font-size: 0.66rem; }
+.link-card b { font-size: 0.8rem; }
+nav.tabs a { font-size: 0.62rem; letter-spacing: 0.06em; }
+.daysum .kpi b small { font-family: var(--label); font-size: 0.9rem; font-weight: 400; letter-spacing: 0; }
+
+button, .btn { font-weight: 600; letter-spacing: 0; }
+.chip { font-weight: 500; } .chip.on { font-weight: 600; }
+b, strong, details summary { font-weight: 600; }
+.daysum .kpi b { font-weight: 700; }
+nav.tabs .brand { font-family: var(--display); font-weight: 800; font-size: 1.2rem; text-transform: none; letter-spacing: -0.03em; }
+
+@media (min-width: 960px) {
+  h1 { font-size: 2.5rem; }
+  .masthead h1 { font-size: 3.4rem; }
+  .masthead .stats b { font-size: 2rem; }
+  .splash h1 { font-size: 2.8rem; }
+  nav.tabs a { font-size: 0.74rem; letter-spacing: 0.08em; }
+  nav.tabs .brand { font-size: 1.3rem; }
+}

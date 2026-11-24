@@ -35,11 +35,10 @@ export function Train({ s, d }: { s: AppState; d: Derived }) {
 
   if (mode === 'run') return <Run plan={plan} onExit={() => setMode('overview')} onFinish={(items) => { completeWorkout(items); setMode('done'); }} />;
   if (mode === 'done') return (
-    <div class="stack center">
+    <div class="stack center narrow">
       <Confetti show />
-      <div class="mascot" style="font-size:4rem">🏆</div>
-      <h1>Workout complete!</h1>
-      <p>+60 XP. Your next session adapts to how it felt. Drink some water and log your food.</p>
+            <h1>Workout complete!</h1>
+      <p>+60 XP. Your next session adapts to how this one felt.</p>
       <a class="btn" href="#/today">Back to Today</a>
     </div>
   );
@@ -48,8 +47,8 @@ export function Train({ s, d }: { s: AppState; d: Derived }) {
     <div class="stack">
       <h1>Train</h1>
       <Card>
-        <div class="row between"><div><b>Level: {d.level.label}</b><div class="small muted">{s.workouts.length} workouts done · Week {d.week}</div></div><span class="pill">{d.profile.equipment === 'none' ? 'Bodyweight' : d.profile.equipment === 'home' ? 'Home gear' : 'Gym'}</span></div>
-        <p class="small muted" style="margin:8px 0 0">Aim for 3 strength days a week with a rest day between, plus walking every day (goal {stepGoal(d.profile.baselineSteps, d.week).toLocaleString()} steps now, rising gradually).</p>
+        <div class="row between"><div><b>Level: {d.level.label}</b><div class="small muted">{s.workouts.length} {s.workouts.length === 1 ? 'workout' : 'workouts'} done · Week {d.week}</div></div><span class="pill">{d.profile.equipment === 'none' ? 'Bodyweight' : d.profile.equipment === 'home' ? 'Home gear' : 'Gym'}</span></div>
+        <p class="small muted">3 strength days a week, with rest between. Walking goal: {stepGoal(d.profile.baselineSteps, d.week).toLocaleString()} steps.</p>
       </Card>
 
       <Card title="Pick your day">
@@ -57,32 +56,30 @@ export function Train({ s, d }: { s: AppState; d: Derived }) {
       </Card>
 
       <Card title="1 · Warm up (2–3 min)">
-        <p class="small" style="margin:0">March in place, arm circles, hip circles, 5 slow bodyweight squats. Go slowly, you should feel warmer, not tired.</p>
+        <p class="small">March in place, arm circles, 5 easy squats.</p>
       </Card>
 
       <Card title="2 · Strength circuit" right={<span class="small muted">{plan.length} moves · ~{Math.round(plan.length * plan[0]?.sets * 1.7) || 20} min</span>}>
         <div class="list">
           {plan.map((p) => (
             <details key={p.exercise.id}>
-              <summary>{p.exercise.emoji} {p.exercise.name} <span class="muted">· {p.sets} × {p.target} {p.unit === 'sec' ? 's' : 'reps'}</span></summary>
-              <p class="small muted" style="margin:6px 0 10px">{p.exercise.cue}</p>
+              <summary>{p.exercise.name} <span class="muted">{p.sets} × {p.target} {p.unit === 'sec' ? 's' : 'reps'}</span></summary>
+              <p class="small muted">{p.exercise.cue}</p>
             </details>
           ))}
         </div>
-        <p class="small muted">Choose a version where your last 2 reps feel hard but your form stays good. Rest 45–60 s between sets.</p>
       </Card>
 
       <Card title={`3 · Cardio finisher: ${cardio.name}`}>
-        <p class="small" style="margin:0">{cardio.emoji} {cardio.how}</p>
-        <p class="small muted" style="margin:6px 0 0">10–15 minutes at first. Because you picked {d.profile.comfortable.length ? 'things you enjoy' : 'walking'}, you'll actually keep doing it.</p>
+        <p class="small">{cardio.how}</p>
       </Card>
 
-      {doneToday && <div class="banner ok">✅ You already trained today. Extra rest is part of the plan, so only go again if you feel great.</div>}
+      {doneToday && <div class="banner ok">Already trained today. Rest is part of the plan.</div>}
       <button class="block" onClick={() => setMode('run')} disabled={!plan.length}>▶ Start guided workout</button>
       <details class="card"><summary>Other cardio options</summary>
-        <div class="list">{CARDIO.map((c) => <div class="item" key={c.id}><div><b>{c.emoji} {c.name}</b><div class="small muted">{c.how}</div></div></div>)}</div>
+        <div class="list">{CARDIO.map((c) => <div class="item" key={c.id}><div><b>{c.name}</b><div class="small muted">{c.how}</div></div></div>)}</div>
       </details>
-      <p class="disclaimer">Stop if you feel sharp pain, dizziness or chest pain, and see a doctor.</p>
+      <p class="disclaimer">Stop if you feel sharp pain or dizziness.</p>
     </div>
   );
 }
@@ -107,11 +104,11 @@ function Run({ plan, onExit, onFinish }: { plan: PlannedItem[]; onExit: () => vo
   };
 
   return (
-    <div class="stack">
-      <div class="row between"><button class="ghost small" onClick={onExit}>✕ Exit</button><span class="muted small">Move {i + 1} of {plan.length}</span></div>
+    <div class="stack narrow">
+      <div class="row between"><button class="ghost small" onClick={onExit}>Exit</button><span class="muted small">Move {i + 1} of {plan.length}</span></div>
       <div class="steps">{plan.map((_, k) => <i key={k} class={k <= i ? 'on' : ''} />)}</div>
       <Card>
-        <div class="center"><div style="font-size:3rem">{p.exercise.emoji}</div><h1 style="margin:0">{p.exercise.name}</h1>
+        <div class="center"><h1>{p.exercise.name}</h1>
           <p class="muted">{p.exercise.cue}</p></div>
         {phase === 'work' && (
           <div class="stack center">
@@ -129,15 +126,13 @@ function Run({ plan, onExit, onFinish }: { plan: PlannedItem[]; onExit: () => vo
         )}
         {phase === 'rate' && (
           <div class="stack center">
-            <b>How did that feel?</b>
-            <p class="small muted">This decides tomorrow's progression. Honest answers get the best plan.</p>
-            <button class="block soft" onClick={() => nextExercise('easy')}>😄 Too easy: make it harder</button>
-            <button class="block soft" onClick={() => nextExercise('right')}>👌 Just right</button>
-            <button class="block soft" onClick={() => nextExercise('hard')}>😮‍💨 Too hard: ease off</button>
+            <b>How did it feel?</b>
+            <button class="block soft" onClick={() => nextExercise('easy')}>Too easy: make it harder</button>
+            <button class="block soft" onClick={() => nextExercise('right')}>Just right</button>
+            <button class="block soft" onClick={() => nextExercise('hard')}>Too hard: ease off</button>
           </div>
         )}
       </Card>
-      <p class="small muted center">Range for this move: {RANGES[p.exercise.kind].min}–{RANGES[p.exercise.kind].max} {RANGES[p.exercise.kind].unit}</p>
     </div>
   );
 }

@@ -44,24 +44,22 @@ export function Settings({ s, d }: { s: AppState; d: Derived }) {
         <select value={p.equipment} onChange={(e) => updateProfile({ equipment: (e.target as HTMLSelectElement).value as 'none' | 'home' | 'gym' })}>
           <option value="none">None (bodyweight only)</option><option value="home">Home: dumbbells/bands</option><option value="gym">Gym access</option>
         </select>
-        <p class="small muted">Switching equipment adds harder, weighted moves at the top of each progression ladder.</p>
-        <label class="row" style="margin-top:8px"><input type="checkbox" style="width:24px;min-height:24px" checked={s.adaptive} onChange={(e) => update((x) => { x.adaptive = (e.target as HTMLInputElement).checked; })} /> <span>Adapt my calories to my measured burn <span class="small muted">(after ~2 weeks of logging)</span></span></label>
+        <label class="row"><input type="checkbox" checked={s.adaptive} onChange={(e) => update((x) => { x.adaptive = (e.target as HTMLInputElement).checked; })} /> <span>Adapt my calories to my measured burn</span></label>
       </Card>
 
       <Card title="Your data">
-        <p class="small muted" style="margin:0 0 8px">Everything is stored only on this device (in your browser). Export a backup now and then, especially before clearing browser data or changing phones.</p>
+        <p class="small muted">Stored only on this device. Export a backup now and then.</p>
         <div class="row wrap">
-          <button class="soft" onClick={exportData}>⬇ Export backup</button>
-          <button class="soft" onClick={() => fileRef.current?.click()}>⬆ Import backup</button>
+          <button class="soft" onClick={exportData}>Export backup</button>
+          <button class="soft" onClick={() => fileRef.current?.click()}>Import backup</button>
           <input ref={fileRef} type="file" accept="application/json" hidden onChange={(e) => { const f = (e.target as HTMLInputElement).files?.[0]; if (f) void importData(f); }} />
         </div>
       </Card>
 
       <Card title="Start over">
-        <p class="small muted" style="margin:0 0 8px">Deletes all data on this device and restarts the setup.</p>
         <button class="danger" onClick={() => { if (confirm('Delete everything and start over? This cannot be undone.')) resetAll(); }}>Reset everything</button>
       </Card>
-      <p class="disclaimer">LeanQuest v1 · educational tool, not medical advice. Nutrient and price data are estimates.</p>
+      <p class="disclaimer">LeanQuest v1 · Not medical advice. Nutrient and price data are estimates.</p>
     </div>
   );
 }
