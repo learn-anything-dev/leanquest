@@ -1,7 +1,7 @@
 import { bmi } from './calc';
 import { buildFeasibility } from './plan';
 import type { Profile } from './types';
-import { ACTIVITIES, activityKcal, activityName, getActivity, isCustom } from '../data/activities';
+import { activityKcal, activityName, getActivity, isCustom } from '../data/activities';
 import { DAY_PLANS, stepGoal } from '../data/exercises';
 
 export type DayKind = 'strength' | 'cardio' | 'sport' | 'walk' | 'rest';
@@ -13,6 +13,8 @@ export interface ScheduleDay {
   title: string;
   detail: string;
   strengthDay?: number; // index into DAY_PLANS
+  /** "yours" = a sport the user scheduled; "plan" = suggested by the app. */
+  source: 'yours' | 'plan';
 }
 
 export interface Recommendation {
@@ -28,6 +30,10 @@ export interface Recommendation {
   lowImpact: boolean;
   schedule: ScheduleDay[];
   cautions: string[];
+  /** Days (Mon = 0) the user plays their own sports. */
+  sportDays: number[];
+  /** Days (Mon = 0) the user said they can train. */
+  trainDays: number[];
 }
 
 export interface CardioPick {
@@ -37,18 +43,32 @@ export interface CardioPick {
 }
 
 const DEFAULT_HOW = 'Keep a steady, comfortable effort you could hold a conversation at.';
+const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
 
-/** Cardio the user could be asked to do: their picks (cardio-capable only), swapping high-impact ones when joints need care. */
-export function cardioPool(comfortable: string[], lowImpact: boolean): CardioPick[] {
+/** Activities that need a venue, partner or team. They are only ever scheduled by the user, never suggested. */
+const SCHEDULED_ONLY_CATEGORIES = new Set(['Ball & racket sports', 'Martial arts & combat']);
+
+/**
+ * Cardio the app may suggest on free days: things the user enjoys that can be done on any day. It never includes a
+ * sport the user has scheduled, or sports that need a court/partner, and it always offers at least two choices so one
+ * activity is not repeated all week.
+ */
+export function cardioPool(comfortable: string[], lowImpact: boolean, scheduled: ReadonlySet<string> = new Set()): CardioPick[] {
   const picks: CardioPick[] = [];
-  for (const id of comfortable) {
-    if (isCustom(id)) { picks.push({ id, name: activityName(id), how: DEFAULT_HOW }); continue; }
+  const add = (id: string) => {
+    if (picks.some((x) => x.id === id) || scheduled.has(id)) return;
+    if (isCustom(id)) { picks.push({ id, name: activityName(id), how: DEFAULT_HOW }); return; }
     const a = getActivity(id);
-    if (!a || !a.cardio) continue;
-    if (lowImpact && a.impact === 'high') continue;
+    if (!a || !a.cardio) return;
+    if (SCHEDULED_ONLY_CATEGORIES.has(a.category)) return;
+    if (lowImpact && a.impact === 'high') return;
     picks.push({ id, name: a.name, how: a.how ?? DEFAULT_HOW });
+  };
+  comfortable.forEach(add);
+  for (const fallback of ['walk-brisk', 'cycle-leisure', 'swim-leisure']) {
+    if (picks.length >= 2) break;
+    add(fallback);
   }
-  if (!picks.length) { const w = getActivity('walk-brisk')!; picks.push({ id: w.id, name: w.name, how: w.how ?? DEFAULT_HOW }); }
   return picks;
 }
 
@@ -64,8 +84,39 @@ export function weekdayIndex(date: string): number {
 }
 
 /**
- * Suggests a weekly training mix from the plan the user chose (calorie level, how aggressive it is),
- * their starting level, how much they already move, their joints and the cardio they enjoy.
+ * Picks `k` of the given days, spread out so sessions are not bunched up (Monday, Wednesday, Friday for three on a
+ * full week). Prefers days that are not back to back.
+ */
+export function spreadDays(days: number[], k: number): number[] {
+  const sorted = [...new Set(days)].sort((x, y) => x - y);
+  if (k <= 0) return [];
+  if (k >= sorted.length) return sorted;
+  const noneAdjacent = (xs: number[]) => xs.every((d, i) => i === 0 || d - xs[i - 1] >= 2);
+  // A: evenly spaced positions along the list.
+  const even = [...new Set(Array.from({ length: k }, (_, i) => sorted[Math.floor((i * sorted.length) / k)]))];
+  // B: every other available day starting from the first.
+  const alt: number[] = [];
+  for (const d of sorted) { if (alt.length < k && (!alt.length || d - alt[alt.length - 1] >= 2)) alt.push(d); }
+  const pick = [even, alt].find((c) => c.length === k && noneAdjacent(c)) ?? (even.length === k ? even : null);
+  if (pick) return pick;
+  const out = new Set(even);
+  for (const d of sorted) { if (out.size >= k) break; out.add(d); }
+  return [...out].sort((x, y) => x - y);
+}
+
+function joinDays(idx: number[]): string {
+  const names = idx.map((i) => DAYS[i]);
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0] ?? '';
+}
+
+/**
+ * Suggests a weekly training mix from the plan the user chose, their level, the sports they already play on fixed
+ * days, the days they can train, their joints and the activities they enjoy.
+ *
+ * Rules the schedule always follows:
+ *  - Sports the user scheduled appear exactly on their days and nowhere else.
+ *  - Suggested strength and cardio only use days the user can train, and never a day that already has a sport.
+ *  - The same activity is never suggested more than needed, and scheduled sports are never suggested as extra cardio.
  */
 export function recommend(p: Profile, week: number, level: 'Beginner' | 'Intermediate' | 'Expert'): Recommendation {
   const feas = buildFeasibility(p);
@@ -118,18 +169,20 @@ export function recommend(p: Profile, week: number, level: 'Beginner' | 'Interme
     ? 'Moves start easy and step up each time they feel easy.'
     : `You are at ${level.toLowerCase()} level, so moves start harder than the basics.`);
   if (lowImpact) why.push('Everything is low impact: no jumping.');
-  if (p.screening.medical) cautions.push('Check with your doctor before increasing your activity.');
+  if (p.screening.medical || p.screening.other.length) cautions.push('Check with your doctor before increasing your activity.');
 
   const intensity = easeIn
     ? 'Easy to moderate: you can talk in full sentences.'
     : 'Moderate: you can talk but not sing.';
 
-  // The sports the user already does on fixed days are anchors; everything else is planned around them.
+  // 1) The user's own sports are fixed anchors.
   const sportByDay = new Map<number, { names: string[]; minutes: number; kcal: number }>();
+  const scheduledIds = new Set<string>();
   let sportMinutes = 0;
   for (const e of p.currentExercise) {
-    const days = (e.days ?? []).filter((d) => d >= 0 && d <= 6);
+    const days = [...new Set((e.days ?? []).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))];
     if (!days.length) continue;
+    scheduledIds.add(e.id);
     const per = e.minutes / days.length;
     for (const d of days) {
       const cur = sportByDay.get(d) ?? { names: [], minutes: 0, kcal: 0 };
@@ -141,55 +194,51 @@ export function recommend(p: Profile, week: number, level: 'Beginner' | 'Interme
     }
   }
   const sportIdx = [...sportByDay.keys()].sort((a, b) => a - b);
-  // Sports count as cardio, so plan fewer extra cardio sessions.
+
+  // 2) Days the user can train (default: every day). Sport days are always honoured, even if not in this list.
+  const trainDays = (p.trainDays ?? []).length ? [...new Set(p.trainDays!)].filter((d) => d >= 0 && d <= 6).sort((a, b) => a - b) : ALL_DAYS;
+  const open = trainDays.filter((d) => !sportByDay.has(d));
+
+  // Sports count as cardio, so fewer extra cardio sessions are needed.
   cardioSessions = Math.max(0, cardioSessions - sportIdx.length);
-  if (sportIdx.length) {
-    const names = sportIdx.map((i) => DAYS[i]);
-    const dayNames = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
-    why.unshift(`Your sports on ${dayNames} are scheduled and count as cardio, so I planned fewer extra cardio sessions.`);
-  }
+  if (sportIdx.length) why.unshift(`Your sports on ${joinDays(sportIdx)} are in your week and count as cardio, so I planned fewer extra cardio sessions.`);
 
-  // build the week
-  const pool = cardioPool(p.comfortable, lowImpact);
-  const strengthSets = strengthDays >= 3
-    ? [[0, 2, 4], [1, 3, 5], [0, 3, 5], [1, 2, 4], [0, 2, 3], [1, 3, 4], [2, 4, 6], [0, 1, 3]]
-    : [[0, 3], [1, 4], [0, 2], [1, 3], [2, 4], [0, 4], [2, 5], [1, 5]];
-  const freeOfSport = (set: number[]) => set.every((i) => !sportIdx.includes(i));
-  let strengthIdx = strengthSets.find(freeOfSport);
-  if (!strengthIdx) {
-    const open = [0, 1, 2, 3, 4, 5, 6].filter((i) => !sportIdx.includes(i));
-    strengthIdx = open.slice(0, strengthDays);
-  }
-  const cardioOrder = [1, 5, 3, 6, 2, 4, 0].filter((i) => !strengthIdx!.includes(i) && !sportIdx.includes(i));
-  const cardioIdx = cardioOrder.slice(0, cardioSessions);
-  const free = [0, 1, 2, 3, 4, 5, 6].filter((i) => !strengthIdx!.includes(i) && !cardioIdx.includes(i) && !sportIdx.includes(i));
-  const restIdx = free.includes(6) ? 6 : free.length > 1 ? free[free.length - 1] : sportIdx.length ? -1 : -1;
+  // 3) Strength first, spread across the open days; then cardio on what is left.
+  const strengthIdx = spreadDays(open, Math.min(strengthDays, open.length));
+  const afterStrength = open.filter((d) => !strengthIdx.includes(d));
+  const cardioIdx = spreadDays(afterStrength, Math.min(cardioSessions, afterStrength.length));
+  const leftover = afterStrength.filter((d) => !cardioIdx.includes(d));
+  const outsideTrainDays = ALL_DAYS.filter((d) => !trainDays.includes(d) && !sportByDay.has(d));
+  // One rest day: days the user cannot train are rest days already; otherwise rest on Sunday if free, else the last free day.
+  const restIdx = outsideTrainDays.length ? -1 : leftover.length ? (leftover.includes(6) ? 6 : leftover[leftover.length - 1]) : -1;
 
+  const pool = cardioPool(p.comfortable, lowImpact, scheduledIds);
   let s = 0;
   let c = 0;
   const schedule: ScheduleDay[] = DAYS.map((day, i) => {
     const sport = sportByDay.get(i);
     if (sport) {
       const kcal = Math.round(sport.kcal / 10) * 10;
-      return { day, kind: 'sport', title: sport.names.join(' + '), detail: `${Math.round(sport.minutes)} min · about ${kcal} kcal` };
+      return { day, kind: 'sport', source: 'yours', title: sport.names.join(' + '), detail: `${Math.round(sport.minutes)} min · about ${kcal} kcal` };
     }
-    if (strengthIdx!.includes(i)) {
+    if (strengthIdx.includes(i)) {
       const n = s++ % DAY_PLANS.length;
-      return { day, kind: 'strength', title: `Strength · Day ${n + 1}`, detail: DAY_PLANS[n].map((x) => PATTERN_NAME[x]).join(', '), strengthDay: n };
+      return { day, kind: 'strength', source: 'plan', title: `Strength · Day ${n + 1}`, detail: DAY_PLANS[n].map((x) => PATTERN_NAME[x]).join(', '), strengthDay: n };
     }
     if (cardioIdx.includes(i)) {
       const opt = pool[c++ % pool.length];
       const kcal = Math.round(activityKcal(opt.id, p.startWeightKg, cardioMinutes) / 10) * 10;
-      return { day, kind: 'cardio', title: opt.name, detail: `${cardioMinutes} min · about ${kcal} kcal` };
+      return { day, kind: 'cardio', source: 'plan', title: opt.name, detail: `${cardioMinutes} min · about ${kcal} kcal` };
     }
-    if (i === restIdx) return { day, kind: 'rest', title: 'Rest', detail: 'Easy stretch if you like' };
-    return { day, kind: 'walk', title: 'Walk', detail: `${steps.toLocaleString()} steps` };
+    if (outsideTrainDays.includes(i)) return { day, kind: 'rest', source: 'plan', title: 'Rest', detail: 'Not a training day' };
+    if (i === restIdx) return { day, kind: 'rest', source: 'plan', title: 'Rest', detail: 'Easy stretch if you like' };
+    return { day, kind: 'walk', source: 'plan', title: 'Walk', detail: `${steps.toLocaleString()} steps` };
   });
 
   return {
-    mode, headline, why, strengthDays, cardioSessions, cardioMinutes, steps,
-    weeklyMinutes: Math.round(strengthDays * 30 + cardioSessions * cardioMinutes + sportMinutes),
-    intensity, lowImpact, schedule, cautions,
+    mode, headline, why, strengthDays: strengthIdx.length, cardioSessions: cardioIdx.length, cardioMinutes, steps,
+    weeklyMinutes: Math.round(strengthIdx.length * 30 + cardioIdx.length * cardioMinutes + sportMinutes),
+    intensity, lowImpact, schedule, cautions, sportDays: sportIdx, trainDays,
   };
 }
 

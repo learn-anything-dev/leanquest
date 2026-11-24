@@ -12,6 +12,7 @@ import { getRegion } from '../../data/regions';
 import { update } from '../../store/store';
 import { Chips, Options } from '../common';
 import { ActivityPicker, AllergyPicker, CurrentExercise, DietPicker, SafetyList, toggle } from '../pickers';
+import { TrainDaysPicker } from '../ExerciseEditor';
 
 const LB = 2.20462;
 const STEPS = ['Welcome', 'About you', 'Safety', 'Your day', 'Exercise now', 'Preferences', 'Your body', 'Goal', 'Food', 'Ready'];
@@ -68,7 +69,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const [d, setD] = useState<Profile>({
     name: '', units: 'metric', sex: 'unspecified', age: 28, heightCm: 160, startWeightKg: 75, goalWeightKg: 68, goalWeeks: 12,
     activity: 'sedentary', baselineSteps: 3000, currentExercise: [], currentMinutesPerWeek: 0, exerciseKcalPerDay: 0, comfortable: ['walk-brisk'], abilities: [],
-    equipment: 'none', limitations: [], country: detectCountry(), region: 'global', diets: ['none'], hasAllergies: false, allergens: [], avoidFoods: [], hotClimate: true,
+    equipment: 'none', trainDays: [], limitations: [], country: detectCountry(), region: 'global', diets: ['none'], hasAllergies: false, allergens: [], avoidFoods: [], hotClimate: true,
     startDate: today(), choice: 'realistic', screening: { under18: false, pregnant: false, eatingDisorder: false, medical: false, other: [] },
   });
   const [ft, setFt] = useState(5);
@@ -220,6 +221,11 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             <Chips<Limitation> multi options={[{ id: 'knees', label: 'Sore knees' }, { id: 'back', label: 'Lower back' }, { id: 'wrists', label: 'Wrists' }, { id: 'shoulders', label: 'Shoulders' }]} value={d.limitations} onChange={(v) => set('limitations', toggle(d.limitations, v))} />
             <label class="f">What equipment do you have?</label>
             <Options<Equipment> label="Equipment" options={[{ id: 'none', label: 'None', hint: 'Bodyweight only' }, { id: 'home', label: 'Home equipment', hint: 'Dumbbells or resistance bands' }, { id: 'gym', label: 'Gym access', hint: 'Machines and barbells' }]} value={d.equipment} onChange={(v) => set('equipment', v)} />
+          </div>
+          <div class="card">
+            <h2>Which days can you train?</h2>
+            <p class="muted small">Strength and cardio go on these days. Sports you play are scheduled separately.</p>
+            <TrainDaysPicker value={d.trainDays ?? []} onChange={(v) => set('trainDays', v)} />
           </div>
         </div>
       )}

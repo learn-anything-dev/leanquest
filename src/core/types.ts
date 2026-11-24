@@ -55,6 +55,8 @@ export interface Profile {
   /** What they can do right now; sets the starting step in each movement ladder. */
   abilities: AbilityId[];
   equipment: Equipment;
+  /** Days (Monday = 0) the user can train. Missing or empty means every day. */
+  trainDays?: number[];
   limitations: Limitation[];
   country: string; // ISO 3166-1 alpha-2
   region: string; // food pack id derived from the country

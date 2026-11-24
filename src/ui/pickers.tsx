@@ -3,7 +3,7 @@ import type { ExerciseEntry, Screening } from '../core/types';
 import { ACTIVITIES, CATEGORIES, activityKcal, activityName, isCustom, searchActivities } from '../data/activities';
 import { ALLERGENS, DIETS, getDiet } from '../data/diets';
 
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+export const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export function toggle<T>(arr: T[], v: T): T[] {
   return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];

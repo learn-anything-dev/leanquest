@@ -7,6 +7,8 @@ import type { Derived } from '../../store/derive';
 import { completeWorkout } from '../../store/actions';
 import type { AppState } from '../../store/store';
 import { Card, Confetti, Chips } from '../common';
+import { ExerciseEditor, TrainDaysPicker, scheduleSummary } from '../ExerciseEditor';
+import { updateProfile } from '../../store/actions';
 
 type Fb = 'easy' | 'right' | 'hard';
 
@@ -34,7 +36,10 @@ export function Train({ s, d }: { s: AppState; d: Derived }) {
   const dayIdx = s.workouts.length % DAY_PLANS.length;
   const [dayPick, setDayPick] = useState(todaySession.kind === 'strength' && todaySession.strengthDay !== undefined ? todaySession.strengthDay : dayIdx);
   const plan = buildWorkout(dayPick, d.profile, s.progression, d.week);
-  const pool = cardioPool(d.profile.comfortable, rec.lowImpact);
+  const scheduledIds = new Set(d.profile.currentExercise.filter((e) => e.days?.length).map((e) => e.id));
+  const pool = cardioPool(d.profile.comfortable, rec.lowImpact, scheduledIds);
+  const [editing, setEditing] = useState(false);
+  const summary = scheduleSummary(d.profile);
   const cardio = pool[s.workouts.length % pool.length];
   const [mode, setMode] = useState<'overview' | 'run' | 'done'>('overview');
   const doneToday = s.workouts.some((w) => w.date === d.today);
@@ -72,12 +77,33 @@ export function Train({ s, d }: { s: AppState; d: Derived }) {
             <div key={x.day} class={`sched-row ${x.kind}${i === todayIdx ? ' today' : ''}`}>
               <span class="sched-day">{x.day}</span>
               <div class="sched-main"><b>{x.title}</b><span>{x.detail}</span></div>
+              {x.source === 'yours' && <span class="pill neutral">Your sport</span>}
               {i === todayIdx && <span class="pill">Today</span>}
             </div>
           ))}
         </div>
-        <p class="small"><a href="#/settings">Change your sports and days</a></p>
         {rec.cautions.map((c) => <div class="banner warn small" key={c}>{c}</div>)}
+      </Card>
+
+      <Card title="Your sports and days" right={<button class="ghost small" onClick={() => setEditing(!editing)}>{editing ? 'Done' : 'Edit'}</button>}>
+        {!editing && (
+          <div class="summary-lines">
+            {summary.sports.length ? summary.sports.map((t) => <div key={t}>{t}</div>) : <div class="muted">No sports added yet</div>}
+            <div class="muted">Training days: {summary.days}</div>
+          </div>
+        )}
+        {editing && (
+          <>
+            <div>
+              <label class="f">Days I can train</label>
+              <TrainDaysPicker value={d.profile.trainDays ?? []} onChange={(v) => updateProfile({ trainDays: v })} />
+            </div>
+            <div>
+              <label class="f">Sports I play</label>
+              <ExerciseEditor profile={d.profile} weightKg={d.currentKg} />
+            </div>
+          </>
+        )}
       </Card>
 
       <Card title="Pick your day">

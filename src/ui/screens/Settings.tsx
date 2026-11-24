@@ -1,17 +1,17 @@
-import { useRef, useState } from 'preact/hooks';
+import { useRef } from 'preact/hooks';
 import { today } from '../../core/dates';
-import { activityName, weeklyExerciseKcal } from '../../data/activities';
+import { activityName } from '../../data/activities';
 import { COUNTRIES, packFor } from '../../data/countries';
 import type { Derived } from '../../store/derive';
 import { getState, replaceState, resetAll, update, type AppState } from '../../store/store';
 import { updateProfile } from '../../store/actions';
 import { Card } from '../common';
-import { ActivityPicker, AllergyPicker, CurrentExercise, DietPicker, toggle } from '../pickers';
+import { ActivityPicker, AllergyPicker, DietPicker, toggle } from '../pickers';
+import { ExerciseEditor, TrainDaysPicker } from '../ExerciseEditor';
 
 export function Settings({ s, d }: { s: AppState; d: Derived }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const p = d.profile;
-  const [exercises, setExercises] = useState(p.currentExercise.length > 0);
 
   const exportData = () => {
     const blob = new Blob([JSON.stringify(getState(), null, 2)], { type: 'application/json' });
@@ -57,18 +57,12 @@ export function Settings({ s, d }: { s: AppState; d: Derived }) {
         <AllergyPicker hasAllergies={p.hasAllergies} allergens={p.allergens} avoidFoods={p.avoidFoods} onChange={(v) => updateProfile(v)} />
       </Card>
 
-      <Card title="Exercise you do now">
-        <CurrentExercise
-          entries={p.currentExercise}
-          active={exercises}
-          onActive={setExercises}
-          weightKg={d.currentKg}
-          onChange={(entries) => updateProfile({
-            currentExercise: entries,
-            currentMinutesPerWeek: entries.reduce((a, e) => a + e.minutes, 0),
-            exerciseKcalPerDay: weeklyExerciseKcal(entries, p.startWeightKg) / 7,
-          })}
-        />
+      <Card title="Training days">
+        <TrainDaysPicker value={p.trainDays ?? []} onChange={(v) => updateProfile({ trainDays: v })} />
+      </Card>
+
+      <Card title="Sports you play">
+        <ExerciseEditor profile={p} weightKg={d.currentKg} />
       </Card>
 
       <Card title="Exercise you enjoy">
