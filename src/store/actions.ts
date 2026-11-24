@@ -8,16 +8,16 @@ function day(s: { days: Record<string, DayLog> }, date: string): DayLog {
   return (s.days[date] ??= { food: [], waterMl: 0 });
 }
 
-export function addFood(date: string, food: Food, grams: number, meal: Meal, price: number) {
+export function addFood(date: string, food: Food, grams: number, meal: Meal) {
   update((s) => {
-    day(s, date).food.push({ id: uid(), ...entryFor(food, grams, meal, price) });
+    day(s, date).food.push({ id: uid(), ...entryFor(food, grams, meal) });
     s.recentFoodIds = [food.id, ...s.recentFoodIds.filter((x) => x !== food.id)].slice(0, 12);
   });
 }
 
 export function addQuickKcal(date: string, name: string, kcal: number, meal: Meal) {
   update((s) => {
-    day(s, date).food.push({ id: uid(), foodId: 'quick', name, grams: 0, kcal: Math.round(kcal), p: 0, c: 0, f: 0, cost: 0, meal });
+    day(s, date).food.push({ id: uid(), foodId: 'quick', name, grams: 0, kcal: Math.round(kcal), p: 0, c: 0, f: 0, meal });
   });
 }
 
@@ -71,13 +71,6 @@ export function setFoodDone(date: string, v: boolean) {
 export function addCustomFood(f: Food) {
   update((s) => {
     s.customFoods.unshift(f);
-  });
-}
-
-export function setPrice(foodId: string, price100: number | null) {
-  update((s) => {
-    if (price100 === null) delete s.priceOverrides[foodId];
-    else s.priceOverrides[foodId] = price100;
   });
 }
 

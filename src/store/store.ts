@@ -12,7 +12,6 @@ export interface AppState {
   workouts: WorkoutLog[];
   progression: Record<string, PatternState>;
   customFoods: Food[];
-  priceOverrides: Record<string, number>; // foodId -> price per 100 g
   adaptive: boolean;
   recentFoodIds: string[];
   celebrated: string[]; // milestone ids already shown
@@ -32,7 +31,6 @@ export function emptyState(): AppState {
     workouts: [],
     progression: {},
     customFoods: [],
-    priceOverrides: {},
     adaptive: true,
     recentFoodIds: [],
     celebrated: [],
@@ -54,10 +52,17 @@ function load(): AppState {
 export function migrate(o: Partial<AppState>): AppState {
   const base = emptyState();
   const merged = { ...base, ...o, v: 1 as const };
+  delete (merged as Record<string, unknown>).priceOverrides;
   if (merged.profile) {
+    const old = merged.profile as Partial<Profile> & { halal?: boolean; vegetarian?: boolean; region?: string; currentActivities?: unknown };
+    const diets = old.diets ?? [old.halal ? 'halal' : '', old.vegetarian ? 'vegetarian' : ''].filter(Boolean);
+    const country = old.country ?? (old.region === 'ph' ? 'PH' : '');
+    const allergens = old.allergens ?? [];
+    const comfortable = (old.comfortable ?? ['walk-brisk']).map((id) => ({ walking: 'walk-brisk', dance: 'dance-social', strength: 'bodyweight-light', stretch: 'stretching', intervals: 'circuit', sports: 'badminton', swim: 'swim-leisure' } as Record<string, string>)[id] ?? id);
     merged.profile = {
-      currentActivities: [], currentMinutesPerWeek: 0, comfortable: ['walking'], abilities: [], baselineSteps: 3000,
-      limitations: [], allergens: [], hotClimate: true, ...(merged.profile as Partial<Profile>),
+      currentExercise: [], currentMinutesPerWeek: 0, exerciseKcalPerDay: 0, abilities: [], baselineSteps: 3000, limitations: [], hotClimate: true,
+      hasAllergies: allergens.length > 0, avoidFoods: [], ...old, diets: diets.length ? diets : ['none'], country, region: country === 'PH' ? 'ph' : 'global', allergens, comfortable,
+      screening: { under18: false, pregnant: false, eatingDisorder: false, medical: false, other: [], ...(old.screening ?? {}) },
     } as Profile;
   }
   return merged;

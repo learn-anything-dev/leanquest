@@ -8,7 +8,6 @@ export interface GameInput {
   waterTarget: number;
   kcalTarget: number;
   stepTarget: number;
-  budgetPerDay: number;
   startDate: string;
   today: string;
   startWeight: number;
@@ -117,10 +116,6 @@ export function computeBadges(i: GameInput, streak: Streak, level: number): Badg
   const dates = Object.keys(i.days);
   const foodDays = dates.filter((d) => hasFood(i.days[d])).length;
   const waterDays = dates.filter((d) => i.days[d].waterMl >= i.waterTarget * 0.95).length;
-  const budgetDays = dates.filter((d) => {
-    const c = i.days[d].food.reduce((a, e) => a + e.cost, 0);
-    return hasFood(i.days[d]) && c > 0 && c <= i.budgetPerDay;
-  }).length;
   const onTargetDays = dates.filter((d) => {
     const k = kcalOf(i.days[d]);
     return hasFood(i.days[d]) && k >= i.kcalTarget * 0.9 && k <= i.kcalTarget * 1.05;
@@ -139,7 +134,6 @@ export function computeBadges(i: GameInput, streak: Streak, level: number): Badg
     b('water-7', '💧', 'Hydro Hero', 'Hit your water goal on 7 days.', waterDays >= 7),
     b('logger-30', '📒', 'Honest Logger', 'Log food on 30 days.', foodDays >= 30),
     b('on-target-10', '🎯', 'Bullseye', 'Land within your calorie range on 10 days.', onTargetDays >= 10),
-    b('budget-7', '🪙', 'Budget Boss', 'Stay on budget on 7 logged days.', budgetDays >= 7),
     b('pushup', '💪', 'Full Push-up', 'Unlock the full push-up progression.', i.pushStep >= 3),
     b('lost-1', '⭐', 'First Kilo', 'Trend weight down 1 kg.', lost >= 1),
     b('lost-5pct', '🌟', '5% Club', 'Lose 5% of your starting weight (a clinically meaningful milestone).', pct >= 5),

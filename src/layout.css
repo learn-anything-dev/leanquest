@@ -116,10 +116,105 @@ label.row > input[type=checkbox] { margin-top: 1px; }
 label.check-card { padding: var(--s4) 20px; }
 
 /* equal-width chip row (meal picker) */
-.chips.fit { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s2); }
-.chips.fit .chip { padding: var(--s2) var(--s1); text-align: center; font-size: .85rem; }
+.chips.fit { display: grid; grid-template-columns: repeat(var(--cols, 4), 1fr); gap: var(--s2); }
+.chips.fit .chip { padding: var(--s2) var(--s2); text-align: center; font-size: .85rem; white-space: normal; line-height: 1.25; display: flex; align-items: center; justify-content: center; }
 .daysum { display: flex; flex-direction: column; gap: var(--s1); }
 .daysum .kpi b small { font-family: inherit; font-size: .9rem; font-weight: 400; color: var(--muted); letter-spacing: 0; }
 
 button, .btn { white-space: nowrap; }
 .row.wrap > button.soft { padding-left: var(--s3); padding-right: var(--s3); }
+
+/* option cards (single choice with description) */
+.options { display: grid; gap: var(--s3); }
+.option { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); width: 100%; min-height: 68px; padding: var(--s4); text-align: left; white-space: normal; background: #fff; color: var(--ink); border: 1px solid var(--line-2); border-radius: 14px; font-weight: 400; }
+.option:hover { background: #fff; border-color: var(--ink); }
+.option-text { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
+.option-text b { font-size: 1rem; font-weight: 600; line-height: 1.3; }
+.option-text span { font-size: .9rem; color: var(--muted); line-height: 1.4; }
+.option-check { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line-2); position: relative; }
+.option.on { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+.option.on .option-check { background: var(--ink); border-color: var(--ink); }
+.option.on .option-check::after { content: ''; position: absolute; left: 6px; top: 3px; width: 6px; height: 11px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+
+/* onboarding: questions read as sentences, not labels */
+.wizard h2 { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; text-transform: none; color: var(--ink); font-family: var(--display); }
+.wizard label.f { text-transform: none; letter-spacing: 0; font-size: .95rem; font-weight: 600; color: var(--ink); font-family: inherit; }
+.wizard label.f small { font-size: .85rem; }
+.wizard .card > p.muted { font-size: .9rem; }
+.chips.fit .chip { border-radius: 12px; min-height: 48px; }
+
+/* checklist rows */
+.wizard .card > label.row { margin-top: 0; padding: var(--s3) 0; border-top: 1px solid var(--line); align-items: center; }
+.wizard .card > h2 + label.row, .wizard .card > p + label.row, .wizard .card > label.f + label.row { border-top: 0; padding-top: 0; }
+.wizard .card > h2 + p { margin-top: var(--s1); }
+.wizard .card > label.row:last-child { padding-bottom: 0; }
+.wizard .card > p.muted + label.row { margin-top: var(--s3); }
+.wizard .grid2 { align-items: end; }
+.wizard .grid2 > div > label.f { margin-bottom: var(--s2); white-space: nowrap; }
+
+/* weekly schedule */
+.sched { display: flex; flex-direction: column; }
+.sched-row { display: flex; align-items: center; gap: var(--s4); padding: var(--s3) 0; border-top: 1px solid var(--line); }
+.sched-row:first-child { border-top: 0; padding-top: 0; }
+.sched-row:last-child { padding-bottom: 0; }
+.sched-day { flex: none; width: 36px; font-size: .72rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.sched-main { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.sched-main b { font-size: .98rem; font-weight: 600; }
+.sched-main span { font-size: .85rem; color: var(--muted); }
+.sched-row.rest .sched-main b, .sched-row.walk .sched-main b { font-weight: 500; color: var(--ink-2); }
+.sched-row.today { background: var(--brand-soft); margin: 0 calc(var(--s3) * -1); padding-left: var(--s3); padding-right: var(--s3); border-radius: 12px; border-top-color: transparent; }
+.sched-row.today + .sched-row { border-top-color: transparent; }
+.sched-row.strength .sched-day { color: var(--brand); }
+
+.today-plan { display: flex; flex-direction: column; gap: var(--s1); }
+.today-plan b { font-size: 1.1rem; font-weight: 600; }
+.today-plan span { color: var(--muted); font-size: .92rem; }
+.wizard .card > .grid2 + .list { margin-top: var(--s5); }
+.item b.right { text-align: right; }
+.pill { white-space: nowrap; flex: none; }
+.chips.fit .chip { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 380px) { .chips.fit .chip { font-size: .76rem; padding-left: 2px; padding-right: 2px; } }
+
+/* primary buttons get the mockup's soft blue gradient */
+button:not(.ghost):not(.soft):not(.danger):not(.chip):not(.option):not(.task), .btn:not(.ghost) { background: linear-gradient(180deg, #3a72f5, #1f4fd8); border-color: #1f4fd8; }
+button:not(.ghost):not(.soft):not(.danger):not(.chip):not(.option):not(.task):hover, .btn:not(.ghost):hover { background: linear-gradient(180deg, #2f66ea, #1a43b8); }
+.splash { background: radial-gradient(520px 260px at 80% 0%, rgba(37, 99, 235, .5), transparent 65%), linear-gradient(180deg, #0a1226, #0c1a42); }
+
+/* pickers (activities, diets, allergies) */
+.stack-sm > * + * { margin-top: var(--s4); }
+.picker > * + * { margin-top: var(--s4); }
+.pick-cats { display: flex; flex-direction: column; }
+.card .pick-cats details { padding: var(--s3) 0; }
+.card .pick-cats details:first-child { padding-top: var(--s3); border-top: 1px solid var(--line); }
+.card .pick-cats details:last-child { padding-bottom: var(--s3); border-bottom: 1px solid var(--line); }
+.pick-cat summary { font-weight: 600; font-size: .95rem; }
+.pick-cat .chips { margin-top: var(--s3); }
+.pick-count { margin-left: auto; margin-right: var(--s2); min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--ink); color: #fff; font-size: .72rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.pick-group { font-size: .72rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin-bottom: var(--s2); }
+.pick-custom > * + * { margin-top: var(--s2); }
+.pick-custom label.f { margin-top: 0; }
+.ex-rows { display: flex; flex-direction: column; }
+.ex-rows > * + * { margin-top: 0; }
+.ex-head { font-size: .72rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); padding-bottom: var(--s2); border-bottom: 1px solid var(--line-2); }
+.ex-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); padding: var(--s3) 0; border-bottom: 1px solid var(--line); }
+.ex-name { display: flex; flex-direction: column; min-width: 0; }
+.ex-name b { font-size: .95rem; font-weight: 600; }
+.ex-name span { font-size: .8rem; color: var(--muted); }
+.ex-min { display: flex; align-items: center; gap: var(--s2); flex: none; }
+.ex-min input { width: 76px; min-height: 40px; padding: 8px 10px; text-align: right; }
+.ex-min span { font-size: .78rem; color: var(--muted); white-space: nowrap; }
+.ex-rows .banner { margin-top: var(--s4); }
+@media (max-width: 420px) { .ex-row { flex-direction: column; align-items: stretch; gap: var(--s2); } .ex-min { justify-content: space-between; } .ex-min input { width: 100px; } }
+
+/* calorie estimate card */
+.estimate { display: flex; align-items: center; gap: var(--s5); padding: var(--s4); border-radius: 14px; background: var(--brand-soft); }
+.estimate-kcal { display: flex; flex-direction: column; align-items: flex-start; flex: none; }
+.estimate-kcal b { font-family: var(--display); font-size: 2.4rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+.estimate-kcal span { font-size: .78rem; color: var(--muted); margin-top: var(--s1); }
+.estimate-macros { display: flex; flex-direction: column; gap: var(--s1); font-size: .88rem; color: var(--ink-2); min-width: 0; }
+.estimate-macros b { font-weight: 600; color: var(--ink); }
+.chip { white-space: normal; text-align: left; max-width: 100%; line-height: 1.3; }
+.chip.static { cursor: default; }
+.pick-cat summary > span:first-child { margin-left: 0; text-align: left; color: var(--ink); font-weight: 600; flex: 1; }
+.pick-cat summary .pick-count { margin-left: 0; }
+.page .topbar { align-items: center; }

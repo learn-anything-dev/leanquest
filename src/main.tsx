@@ -6,6 +6,7 @@ import './styles.css';
 import './layout.css';
 import './desktop.css';
 import './typography.css';
+import './today.css';
 
 registerSW({ immediate: true });
 render(<App />, document.getElementById('app')!);

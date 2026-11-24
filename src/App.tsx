@@ -51,7 +51,7 @@ const TABS: { id: string; label: string; mode?: 'desk' | 'mob' }[] = [
 ];
 
 function More() {
-  const items = [['plan', 'Plan & budget meals'], ['rewards', 'Rewards & streaks'], ['learn', 'Why it works & sources'], ['settings', 'Settings & backup']];
+  const items = [['plan', 'Plan & meal ideas'], ['rewards', 'Rewards & streaks'], ['learn', 'Why it works & sources'], ['settings', 'Settings & backup']];
   return (
     <div class="stack">
       <h1>More</h1>
@@ -108,10 +108,11 @@ export function App() {
       <Toast msg={badgeMsg} />
       <nav class="tabs" aria-label="Main">
         <div class="inner">
-          <a class="brand" href="#/today">LeanQuest</a>
+          <a class="brand" href="#/today"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19L19 5M9 5h10v10" /></svg>LeanQuest</a>
           <div class="links">
             {TABS.map((x) => <a key={x.id} href={`#/${x.id}`} class={`${active === x.id ? 'on' : ''} ${route === x.id ? 'on-d' : ''} ${x.mode ?? ''}`} aria-current={route === x.id ? 'page' : undefined}><Icon name={x.id} /><span>{x.label}</span></a>)}
           </div>
+          <a class="nav-user" href="#/settings" aria-label="Settings and profile">{(s.profile.name || 'U').trim().charAt(0).toUpperCase()}</a>
         </div>
       </nav>
       <main class="page">{screen}</main>

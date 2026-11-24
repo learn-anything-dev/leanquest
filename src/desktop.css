@@ -53,3 +53,15 @@ nav.tabs a span { display: block; }
 @media (min-width: 1100px) {
   .page .stack.dash { columns: 3; }
 }
+
+/* brand mark + profile chip (desktop top bar) */
+nav.tabs .brand svg { width: 22px; height: 22px; stroke: #4f8cff; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; margin-right: 8px; vertical-align: -3px; }
+nav.tabs .nav-user { display: none; }
+@media (min-width: 960px) {
+  nav.tabs { background: var(--dark); }
+  nav.tabs .inner { gap: var(--s5); }
+  nav.tabs .links { margin-left: auto; margin-right: var(--s3); }
+  nav.tabs .nav-user { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: #2563eb; color: #fff; font-weight: 700; font-size: .9rem; letter-spacing: 0; text-decoration: none; padding: 0; border: 0; flex: none; }
+  nav.tabs .nav-user:hover { background: #1d4ed8; color: #fff; }
+}
+nav.tabs a.brand svg { display: inline-block; }

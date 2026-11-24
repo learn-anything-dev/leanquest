@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'preact/hooks';
 import { addDays, formatShort, today } from '../../core/dates';
-import { MEAL_LABEL, excluded, sumEntries } from '../../core/nutrition';
+import { estimateFood, estimateToFood, suggestDishes, type Size } from '../../core/foodEstimator';
+import { MEAL_LABEL, excluded, excludedReason, sumEntries } from '../../core/nutrition';
 import type { Food, Meal } from '../../core/types';
+import { DISH_CATEGORIES } from '../../data/dishes';
 import type { Derived } from '../../store/derive';
 import { addCustomFood, addFood, addQuickKcal, removeFood, setFoodDone } from '../../store/actions';
 import { dayOf, uid, type AppState } from '../../store/store';
@@ -20,26 +22,24 @@ export function FoodScreen({ s, d }: { s: AppState; d: Derived }) {
   const [pick, setPick] = useState<Food | null>(null);
   const [servings, setServings] = useState(1);
   const [grams, setGrams] = useState<number | null>(null);
-  const [quick, setQuick] = useState(false);
-  const [custom, setCustom] = useState(false);
+  const [mode, setMode] = useState<'search' | 'estimate' | 'quick'>('search');
   const [toast, say] = useToast();
   const log = dayOf(s, date);
   const t = sumEntries(log.food);
-  const cur = d.region.currency;
 
   const results = useMemo(() => {
     const term = q.trim().toLowerCase();
     const all = d.foods;
     if (!term) {
       const recents = s.recentFoodIds.map((id) => all.find((f) => f.id === id)).filter(Boolean) as Food[];
-      return { label: recents.length ? 'Recent' : 'Suggestions', list: recents.length ? recents : all.filter((f) => f.cat !== 'treat').slice(0, 10) };
+      return { label: recents.length ? 'Recent' : 'Suggestions', list: recents.length ? recents : all.filter((f) => f.cat !== 'treat' && !excluded(f, d.profile)).slice(0, 10) };
     }
     return { label: 'Results', list: all.filter((f) => f.name.toLowerCase().includes(term)).slice(0, 25) };
-  }, [q, d.foods, s.recentFoodIds]);
+  }, [q, d.foods, s.recentFoodIds, d.profile]);
 
   const g = grams ?? Math.round((pick?.servingG ?? 100) * servings);
-  const preview = pick ? { kcal: Math.round((pick.kcal * g) / 100), p: Math.round((pick.p * g) / 10) / 10, cost: (d.priceOf(pick) * g) / 100 } : null;
-  const diets = (f: Food) => excluded(f, d.profile);
+  const preview = pick ? { kcal: Math.round((pick.kcal * g) / 100), p: Math.round((pick.p * g) / 10) / 10 } : null;
+  const conflict = (f: Food) => excludedReason(f, d.profile);
 
   return (
     <div class="stack">
@@ -55,29 +55,29 @@ export function FoodScreen({ s, d }: { s: AppState; d: Derived }) {
       <Card>
         <div class="daysum"><div class="kpi"><b>{t.kcal} <small>/ {d.targets.kcal} kcal</small></b></div><span class="small muted">{Math.round(t.p)} g protein · {Math.round(t.c)} g carbs · {Math.round(t.f)} g fat</span></div>
         <Bar value={t.kcal} max={d.targets.kcal} tone={t.kcal > d.targets.kcal * 1.05 ? 'warn' : undefined} />
-        <p class="small muted">Protein goal {d.targets.proteinG} g · Spent {cur}{t.cost.toFixed(0)} of {cur}{d.profile.budgetPerDay}</p>
+        <p class="small muted">Protein goal {d.targets.proteinG} g</p>
       </Card>
 
-      {!pick && !quick && !custom && (
+      {!pick && mode === 'search' && (
         <Card title="Add food">
           <Chips<Meal> fit options={MEALS.map((m) => ({ id: m, label: MEAL_LABEL[m] }))} value={meal} onChange={setMeal} />
-          <input type="search" placeholder="Search foods, e.g. rice, egg, chicken" value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)} aria-label="Search foods" />
+          <input type="search" placeholder="Search foods" value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)} aria-label="Search foods" />
           <p class="small muted">{results.label}</p>
           <div class="list">
             {results.list.map((f) => (
               <div class="item" key={f.id}>
                 <div>
                   <b>{f.name}</b>
-                  <div class="small muted">{f.servingLabel}: {Math.round((f.kcal * f.servingG) / 100)} kcal · {Math.round((f.p * f.servingG) / 100)}g protein{diets(f) ? ' · conflicts with your diet' : ''}</div>
+                  <div class="small muted">{f.servingLabel}: {Math.round((f.kcal * f.servingG) / 100)} kcal · {Math.round((f.p * f.servingG) / 100)}g protein{conflict(f) ? ' · conflicts with your diet or allergies' : ''}</div>
                 </div>
                 <button class="small" onClick={() => { setPick(f); setServings(1); setGrams(null); }}>Add</button>
               </div>
             ))}
-            {!results.list.length && <p class="muted small">No match. Add a custom food below.</p>}
+            {!results.list.length && <p class="muted small">Not in the list? Describe it and I will estimate the calories.</p>}
           </div>
           <div class="row wrap">
-            <button class="soft small" onClick={() => setQuick(true)}>Quick calories</button>
-            <button class="soft small" onClick={() => setCustom(true)}>＋ Custom food</button>
+            <button class="soft" onClick={() => setMode('estimate')}>Can't find it? Describe it</button>
+            <button class="soft" onClick={() => setMode('quick')}>Quick calories</button>
           </div>
         </Card>
       )}
@@ -90,16 +90,31 @@ export function FoodScreen({ s, d }: { s: AppState; d: Derived }) {
             <div class="grow"><label class="f" for="gr">or grams</label>
               <input id="gr" type="number" inputMode="numeric" value={g} onInput={(e) => setGrams(+(e.target as HTMLInputElement).value)} /></div>
           </div>
-          <div class="banner info">≈ <b>{preview.kcal} kcal</b> · {preview.p}g protein · {cur}{preview.cost.toFixed(1)}</div>
+          <div class="banner info">≈ <b>{preview.kcal} kcal</b> · {preview.p}g protein</div>
+          {conflict(pick) && <div class="banner warn small">This conflicts with your diet or allergies ({conflict(pick)}).</div>}
           <div class="row">
             <button class="ghost grow" onClick={() => setPick(null)}>Cancel</button>
-            <button class="grow" disabled={!(g > 0)} onClick={() => { addFood(date, pick, g, meal, d.priceOf(pick)); say(`Added ${pick.name}`); setPick(null); setQ(''); }}>Add to {MEAL_LABEL[meal]}</button>
+            <button class="grow" disabled={!(g > 0)} onClick={() => { addFood(date, pick, g, meal); say(`Added ${pick.name}`); setPick(null); setQ(''); }}>Add to {MEAL_LABEL[meal]}</button>
           </div>
         </Card>
       )}
 
-      {quick && <QuickKcal onClose={() => setQuick(false)} onAdd={(n, k) => { addQuickKcal(date, n, k, meal); say('Added'); setQuick(false); }} />}
-      {custom && <CustomFood region={cur} onClose={() => setCustom(false)} onSave={(f) => { addCustomFood(f); say('Saved. Find it in search'); setCustom(false); }} />}
+      {mode === 'quick' && <QuickKcal onClose={() => setMode('search')} onAdd={(n, k) => { addQuickKcal(date, n, k, meal); say('Added'); setMode('search'); }} />}
+      {mode === 'estimate' && (
+        <EstimatePanel
+          initial={q}
+          meal={meal}
+          profile={d.profile}
+          onClose={() => setMode('search')}
+          onAdd={(food, grams2, save) => {
+            if (save) addCustomFood(food);
+            addFood(date, food, grams2, meal);
+            say(`Added ${food.name}`);
+            setMode('search');
+            setQ('');
+          }}
+        />
+      )}
 
       {MEALS.map((m) => {
         const items = log.food.filter((e) => e.meal === m);
@@ -109,7 +124,7 @@ export function FoodScreen({ s, d }: { s: AppState; d: Derived }) {
             <div class="list">
               {items.map((e) => (
                 <div class="item" key={e.id}>
-                  <div><b>{e.name}</b><div class="small muted">{e.grams ? `${e.grams} g · ` : ''}{e.kcal} kcal{e.p ? ` · ${e.p}g P` : ''}</div></div>
+                  <div><b>{e.name}</b><div class="small muted">{e.grams ? `${e.grams} g · ` : ''}{e.estimated ? '~' : ''}{e.kcal} kcal{e.p ? ` · ${e.p}g P` : ''}</div></div>
                   <button class="ghost small" aria-label={`Remove ${e.name}`} onClick={() => removeFood(date, e.id)}>Remove</button>
                 </div>
               ))}
@@ -119,7 +134,7 @@ export function FoodScreen({ s, d }: { s: AppState; d: Derived }) {
       })}
 
       {log.food.length > 0 && (
-        <label class="row card" style="gap:12px"><input type="checkbox" checked={!!log.foodDone} onChange={(e) => setFoodDone(date, (e.target as HTMLInputElement).checked)} /> <span>Everything logged for this day</span></label>
+        <label class="row card"><input type="checkbox" checked={!!log.foodDone} onChange={(e) => setFoodDone(date, (e.target as HTMLInputElement).checked)} /> <span>Everything logged for this day</span></label>
       )}
       <Toast msg={toast} />
     </div>
@@ -140,25 +155,95 @@ function QuickKcal({ onAdd, onClose }: { onAdd: (name: string, kcal: number) => 
   );
 }
 
-function CustomFood({ onSave, onClose, region }: { onSave: (f: Food) => void; onClose: () => void; region: string }) {
-  const [v, setV] = useState({ name: '', kcal: '', p: '', c: '', f: '', serv: '100', label: '1 serving', price: '' });
-  const set = (k: keyof typeof v) => (e: Event) => setV((x) => ({ ...x, [k]: (e.target as HTMLInputElement).value }));
-  const ok = v.name.trim() && +v.kcal >= 0 && v.kcal !== '' && +v.serv > 0;
+const SIZES: { id: Size; label: string }[] = [
+  { id: 'small', label: 'Small' },
+  { id: 'medium', label: 'Regular' },
+  { id: 'large', label: 'Large' },
+];
+
+/** Type what you ate; the app works out the calories. No numbers needed. */
+function EstimatePanel({ initial, meal, profile, onClose, onAdd }: {
+  initial: string;
+  meal: Meal;
+  profile: Derived['profile'];
+  onClose: () => void;
+  onAdd: (food: Food, grams: number, save: boolean) => void;
+}) {
+  const [text, setText] = useState(initial);
+  const [size, setSize] = useState<Size>('medium');
+  const [category, setCategory] = useState<string>('');
+  const [gramsStr, setGramsStr] = useState('');
+  const [manual, setManual] = useState(false);
+  const [mv, setMv] = useState({ kcal: '', p: '', c: '', f: '' });
+  const grams = +gramsStr > 0 ? +gramsStr : undefined;
+
+  const est = estimateFood(text, { size, grams, category: category || undefined });
+  const needsCategory = text.trim().length > 1 && !est;
+  const ideas = text.trim().length > 1 ? suggestDishes(text, 4) : [];
+  const food = est ? estimateToFood(est, `custom-${uid()}`) : null;
+  const clash = food ? excludedReason(food, profile) : null;
+  const confLabel = est ? (est.confidence === 'high' ? 'Good match' : est.confidence === 'medium' ? 'Reasonable estimate' : 'Rough estimate') : '';
+
+  const manualFood: Food | null = manual && +mv.kcal > 0 && text.trim()
+    ? { id: `custom-${uid()}`, name: text.trim(), cat: 'carb', kcal: +mv.kcal, p: +mv.p || 0, c: +mv.c || 0, f: +mv.f || 0, servingG: 100, servingLabel: '100 g', meals: ['b', 'l', 'd', 's'] }
+    : null;
+
   return (
-    <Card title="Custom food">
-      <p class="small muted">Values per 100 g, from the label.</p>
-      <label class="f" for="cn">Name</label><input id="cn" value={v.name} onInput={set('name')} />
-      <div class="grid2">
-        <div><label class="f">kcal / 100 g</label><input type="number" inputMode="decimal" value={v.kcal} onInput={set('kcal')} /></div>
-        <div><label class="f">Protein g</label><input type="number" inputMode="decimal" value={v.p} onInput={set('p')} /></div>
-        <div><label class="f">Carbs g</label><input type="number" inputMode="decimal" value={v.c} onInput={set('c')} /></div>
-        <div><label class="f">Fat g</label><input type="number" inputMode="decimal" value={v.f} onInput={set('f')} /></div>
-        <div><label class="f">Serving (g)</label><input type="number" inputMode="decimal" value={v.serv} onInput={set('serv')} /></div>
-        <div><label class="f">Serving name</label><input value={v.label} onInput={set('label')} /></div>
-      </div>
-      <label class="f">Price per 100 g ({region}) <small>(optional)</small></label><input type="number" inputMode="decimal" value={v.price} onInput={set('price')} />
-      <div class="row"><button class="ghost grow" onClick={onClose}>Cancel</button>
-        <button class="grow" disabled={!ok} onClick={() => onSave({ id: `custom-${uid()}`, name: v.name.trim(), cat: 'carb', kcal: +v.kcal, p: +v.p || 0, c: +v.c || 0, f: +v.f || 0, servingG: +v.serv, servingLabel: v.label || '1 serving', price100: +v.price || 0, meals: ['b', 'l', 'd', 's'] })}>Save</button></div>
+    <Card title="Describe what you ate">
+      <label class="f" for="est-text">What did you eat or drink?</label>
+      <input id="est-text" value={text} autoFocus placeholder="e.g. chicken adobo with rice, 2 slices of pizza, milk tea" onInput={(e) => { setText((e.target as HTMLInputElement).value); setCategory(''); }} />
+      {ideas.length > 0 && !est?.matched.length && <div class="chips">{ideas.map((x) => <button type="button" class="chip" key={x.name} onClick={() => setText(x.name)}>{x.name}</button>)}</div>}
+
+      {needsCategory && (
+        <div>
+          <label class="f">I do not recognise that. What is it mostly?</label>
+          <div class="chips">{DISH_CATEGORIES.map((c) => <button type="button" key={c.id} class={category === c.id ? 'chip on' : 'chip'} aria-pressed={category === c.id} onClick={() => setCategory(c.id)}>{c.name}</button>)}</div>
+        </div>
+      )}
+
+      {est && food && (
+        <>
+          <div>
+            <label class="f">How big was it?</label>
+            <Chips<Size> fit={3} options={SIZES} value={size} onChange={(v) => { setSize(v); setGramsStr(''); }} />
+            <p class="small muted">{size === 'medium' ? 'A regular portion' : size === 'small' ? 'About 30% smaller than regular' : 'About 40% bigger than regular'} · {Math.round(est.grams)} g</p>
+          </div>
+          <div class="estimate">
+            <div class="estimate-kcal"><b>{est.kcal}</b><span>kcal</span></div>
+            <div class="estimate-macros"><span><b>{Math.round(est.p)} g</b> protein</span><span><b>{Math.round(est.c)} g</b> carbs</span><span><b>{Math.round(est.f)} g</b> fat</span></div>
+          </div>
+          <p class="small muted">{confLabel}: {est.matched.join(' + ')}. Real meals vary by about 25%.{est.note ? ` ${est.note}.` : ''}</p>
+          {clash && <div class="banner warn small">This may conflict with your diet or allergies ({clash}).</div>}
+          <details>
+            <summary>Adjust the portion in grams</summary>
+            <label class="f" for="est-g">Weight (g)</label>
+            <input id="est-g" type="number" inputMode="numeric" value={gramsStr} placeholder={String(est.grams)} onInput={(e) => setGramsStr((e.target as HTMLInputElement).value)} />
+          </details>
+          <div class="row wrap">
+            <button class="ghost grow" onClick={onClose}>Cancel</button>
+            <button class="grow" onClick={() => onAdd(food, food.servingG, false)}>Add to {MEAL_LABEL[meal]}</button>
+          </div>
+          <button class="soft block" onClick={() => onAdd(food, food.servingG, true)}>Add and save for next time</button>
+        </>
+      )}
+
+      {!est && (
+        <>
+          <details open={manual} onToggle={(e) => setManual((e.target as HTMLDetailsElement).open)}>
+            <summary>I know the numbers</summary>
+            <div class="grid2">
+              <div><label class="f" for="mv-k">kcal per 100 g</label><input id="mv-k" type="number" inputMode="decimal" value={mv.kcal} onInput={(e) => setMv({ ...mv, kcal: (e.target as HTMLInputElement).value })} /></div>
+              <div><label class="f" for="mv-p">Protein g</label><input id="mv-p" type="number" inputMode="decimal" value={mv.p} onInput={(e) => setMv({ ...mv, p: (e.target as HTMLInputElement).value })} /></div>
+              <div><label class="f" for="mv-c">Carbs g</label><input id="mv-c" type="number" inputMode="decimal" value={mv.c} onInput={(e) => setMv({ ...mv, c: (e.target as HTMLInputElement).value })} /></div>
+              <div><label class="f" for="mv-f">Fat g</label><input id="mv-f" type="number" inputMode="decimal" value={mv.f} onInput={(e) => setMv({ ...mv, f: (e.target as HTMLInputElement).value })} /></div>
+            </div>
+          </details>
+          <div class="row">
+            <button class="ghost grow" onClick={onClose}>Cancel</button>
+            <button class="grow" disabled={!manualFood} onClick={() => manualFood && onAdd(manualFood, 100, true)}>Add 100 g</button>
+          </div>
+        </>
+      )}
     </Card>
   );
 }

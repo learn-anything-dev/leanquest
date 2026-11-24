@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { WorkoutItem } from '../../core/types';
-import { CARDIO, DAY_PLANS, RANGES, buildWorkout, pickCardio, stepGoal, type PlannedItem } from '../../data/exercises';
+import { cardioPool, recommend, todaysSession, weekdayIndex } from '../../core/training';
+import { DAY_PLANS, RANGES, buildWorkout, type PlannedItem } from '../../data/exercises';
+import { ACTIVITIES } from '../../data/activities';
 import type { Derived } from '../../store/derive';
 import { completeWorkout } from '../../store/actions';
 import type { AppState } from '../../store/store';
@@ -26,10 +28,14 @@ function useCountdown(): [number, (n: number) => void, boolean] {
 }
 
 export function Train({ s, d }: { s: AppState; d: Derived }) {
+  const rec = recommend(d.profile, d.week, d.level.label);
+  const todaySession = todaysSession(rec, d.today);
+  const todayIdx = weekdayIndex(d.today);
   const dayIdx = s.workouts.length % DAY_PLANS.length;
-  const [dayPick, setDayPick] = useState(dayIdx);
+  const [dayPick, setDayPick] = useState(todaySession.kind === 'strength' && todaySession.strengthDay !== undefined ? todaySession.strengthDay : dayIdx);
   const plan = buildWorkout(dayPick, d.profile, s.progression, d.week);
-  const cardio = pickCardio(d.profile.comfortable, s.workouts.length);
+  const pool = cardioPool(d.profile.comfortable, rec.lowImpact);
+  const cardio = pool[s.workouts.length % pool.length];
   const [mode, setMode] = useState<'overview' | 'run' | 'done'>('overview');
   const doneToday = s.workouts.some((w) => w.date === d.today);
 
@@ -47,8 +53,30 @@ export function Train({ s, d }: { s: AppState; d: Derived }) {
     <div class="stack">
       <h1>Train</h1>
       <Card>
-        <div class="row between"><div><b>Level: {d.level.label}</b><div class="small muted">{s.workouts.length} {s.workouts.length === 1 ? 'workout' : 'workouts'} done · Week {d.week}</div></div><span class="pill">{d.profile.equipment === 'none' ? 'Bodyweight' : d.profile.equipment === 'home' ? 'Home gear' : 'Gym'}</span></div>
-        <p class="small muted">3 strength days a week, with rest between. Walking goal: {stepGoal(d.profile.baselineSteps, d.week).toLocaleString()} steps.</p>
+        <div class="row between"><div><b>Level: {d.level.label}</b><div class="small muted">{s.workouts.length} {s.workouts.length === 1 ? 'workout' : 'workouts'} · Week {d.week}</div></div><span class="pill">{d.profile.equipment === 'none' ? 'Bodyweight' : d.profile.equipment === 'home' ? 'Home gear' : 'Gym'}</span></div>
+        <p class="small muted">{rec.intensity}</p>
+      </Card>
+
+      <Card title="Your week" right={<span class="pill neutral">About {rec.weeklyMinutes} min</span>}>
+        <div>
+          <h3>{rec.headline}</h3>
+          <p class="small muted">{rec.why[0]}</p>
+        </div>
+        <div class="grid3 center">
+          <div class="kpi"><b>{rec.strengthDays}</b><span>Strength</span></div>
+          <div class="kpi"><b>{rec.cardioSessions}</b><span>Cardio</span></div>
+          <div class="kpi"><b>{rec.steps.toLocaleString()}</b><span>Daily steps</span></div>
+        </div>
+        <div class="sched">
+          {rec.schedule.map((x, i) => (
+            <div key={x.day} class={`sched-row ${x.kind}${i === todayIdx ? ' today' : ''}`}>
+              <span class="sched-day">{x.day}</span>
+              <div class="sched-main"><b>{x.title}</b><span>{x.detail}</span></div>
+              {i === todayIdx && <span class="pill">Today</span>}
+            </div>
+          ))}
+        </div>
+        {rec.cautions.map((c) => <div class="banner warn small" key={c}>{c}</div>)}
       </Card>
 
       <Card title="Pick your day">
@@ -77,7 +105,7 @@ export function Train({ s, d }: { s: AppState; d: Derived }) {
       {doneToday && <div class="banner ok">Already trained today. Rest is part of the plan.</div>}
       <button class="block" onClick={() => setMode('run')} disabled={!plan.length}>▶ Start guided workout</button>
       <details class="card"><summary>Other cardio options</summary>
-        <div class="list">{CARDIO.map((c) => <div class="item" key={c.id}><div><b>{c.name}</b><div class="small muted">{c.how}</div></div></div>)}</div>
+        <div class="list">{ACTIVITIES.filter((a) => a.cardio && !(rec.lowImpact && a.impact === 'high')).map((a) => <div class="item" key={a.id}><div><b>{a.name}</b><div class="small muted">{a.how ?? 'Steady, comfortable effort.'}</div></div></div>)}</div>
       </details>
       <p class="disclaimer">Stop if you feel sharp pain or dizziness.</p>
     </div>
@@ -113,7 +141,7 @@ function Run({ plan, onExit, onFinish }: { plan: PlannedItem[]; onExit: () => vo
         {phase === 'work' && (
           <div class="stack center">
             <div><b style="font-size:1.4rem">Set {set} of {p.sets}</b><br /><span class="muted">Target: {p.target} {isHold ? 'seconds' : 'reps'}</span></div>
-            {isHold && (running ? <div class="timer">{left}</div> : <button class="soft" onClick={() => startTimer(p.target)}>⏱ Start {p.target}s timer</button>)}
+            {isHold && (running ? <div class="timer">{left}</div> : <button class="soft" onClick={() => startTimer(p.target)}>Start {p.target}s timer</button>)}
             <button class="block" onClick={afterSet}>✔ Set done</button>
           </div>
         )}

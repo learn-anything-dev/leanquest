@@ -7,9 +7,9 @@ import type { Profile } from './types';
 
 const base: Profile = {
   name: 'Test', units: 'metric', sex: 'female', age: 28, heightCm: 154.94, startWeightKg: 80, goalWeightKg: 65, goalWeeks: 8,
-  activity: 'sedentary', baselineSteps: 3000, currentActivities: [], currentMinutesPerWeek: 0, comfortable: ['walking'], abilities: [],
-  equipment: 'none', limitations: [], region: 'ph', budgetPerDay: 200, halal: false, vegetarian: false, allergens: [], hotClimate: true,
-  startDate: '2026-01-01', choice: 'realistic', screening: { under18: false, pregnant: false, eatingDisorder: false, medical: false },
+  activity: 'sedentary', baselineSteps: 3000, currentExercise: [], currentMinutesPerWeek: 0, exerciseKcalPerDay: 0, comfortable: ['walk-brisk'], abilities: [],
+  equipment: 'none', limitations: [], country: 'PH', region: 'ph', diets: ['none'], hasAllergies: false, allergens: [], avoidFoods: [], hotClimate: true,
+  startDate: '2026-01-01', choice: 'realistic', screening: { under18: false, pregnant: false, eatingDisorder: false, medical: false, other: [] },
 };
 
 describe('calc', () => {

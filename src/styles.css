@@ -1,8 +1,8 @@
 /* Visual language inspired by builtwithscience.com: near-black anchors, editorial serif headlines,
    condensed uppercase labels, pill buttons, sparse copy. Content areas stay white-ish. */
 :root {
-  --bg: #f6f6f4; --card: #ffffff; --ink: #10181f; --ink-2: #3a444d; --muted: #6a757e; --line: #e6e7e4; --line-2: #d3d6d3;
-  --dark: #0a0a0a; --on-dark: #ffffff; --on-dark-muted: #a7afb6;
+  --bg: #f5f7fb; --card: #ffffff; --ink: #10181f; --ink-2: #3a444d; --muted: #6a757e; --line: #e6e7e4; --line-2: #d3d6d3;
+  --dark: #0a1226; --on-dark: #ffffff; --on-dark-muted: #a7afb6;
   --brand: #1f4fd8; --brand-hover: #1a43b8; --brand-ink: #ffffff; --brand-soft: #eaf0fd;
   --warn: #8a5a12; --warn-soft: #f8f1e2; --bad: #a3322f; --bad-soft: #f7e9e8; --good: #2f6f48; --good-soft: #e8f2ea;
   --info: #1f4fd8; --info-soft: #eaf0fd; --radius: 14px;

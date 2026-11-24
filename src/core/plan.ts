@@ -1,4 +1,5 @@
 import { KCAL_PER_KG, adjustedWeight, bmi, round, tdee } from './calc';
+import { rulesFor } from '../data/diets';
 import type { Activity, PlanChoice, Profile, Sex } from './types';
 
 /** Lowest daily intake the app will ever schedule. Common convention for unsupervised plans. */
@@ -20,6 +21,8 @@ export interface SimInput {
   age: number;
   heightCm: number;
   activity: Activity;
+  /** Extra kcal/day from deliberate exercise the user already does. */
+  extra?: number;
 }
 
 /**
@@ -31,7 +34,7 @@ export function projectWeights(input: SimInput, startKg: number, intake: number,
   const out = [startKg];
   let w = startKg;
   for (let d = 0; d < days; d++) {
-    const maint = tdee(input.sex, input.age, w, input.heightCm, input.activity) * tdeeScale;
+    const maint = tdee(input.sex, input.age, w, input.heightCm, input.activity) * tdeeScale + (input.extra ?? 0);
     w += (intake - maint) / KCAL_PER_KG;
     out.push(w);
   }
@@ -94,13 +97,13 @@ function detail(
   activity: Activity,
   floor: number,
 ): PlanDetail {
-  const sim: SimInput = { sex: p.sex, age: p.age, heightCm: p.heightCm, activity };
+  const sim: SimInput = { sex: p.sex, age: p.age, heightCm: p.heightCm, activity, extra: p.exerciseKcalPerDay };
   const days = Math.round(p.goalWeeks * 7);
   const curve = projectWeights(sim, p.startWeightKg, intake, Math.max(days, 730));
   const projectedKg = curve[Math.min(days, curve.length - 1)];
   const lossKg = p.startWeightKg - projectedKg;
   const hit = curve.findIndex((w) => w <= p.goalWeightKg);
-  const maint0 = tdee(p.sex, p.age, p.startWeightKg, p.heightCm, activity);
+  const maint0 = tdee(p.sex, p.age, p.startWeightKg, p.heightCm, activity) + p.exerciseKcalPerDay;
   const kgPerWeek = days > 0 ? lossKg / (days / 7) : 0;
   return {
     key,
@@ -137,7 +140,7 @@ export function riskList(pctPerWeek: number, atFloor: boolean): string[] {
 
 export function buildFeasibility(p: Profile): Feasibility {
   const floor = calorieFloor(p.sex);
-  const maint = tdee(p.sex, p.age, p.startWeightKg, p.heightCm, p.activity);
+  const maint = tdee(p.sex, p.age, p.startWeightKg, p.heightCm, p.activity) + p.exerciseKcalPerDay;
   const neededLoss = Math.max(0, p.startWeightKg - p.goalWeightKg);
   const days = Math.max(1, Math.round(p.goalWeeks * 7));
   const reqPerWeek = neededLoss / (days / 7);
@@ -149,7 +152,7 @@ export function buildFeasibility(p: Profile): Feasibility {
   // Guidelines for adults with obesity use ~500-750 kcal/day deficits; for lower BMI we keep it to 25% of maintenance.
   const pctCap = bmi(p.startWeightKg, p.heightCm) >= 30 ? 0.3 : 0.25;
   const maxDeficit = Math.min(paceDeficit, pctCap * maint, 750);
-  const simReal: SimInput = { sex: p.sex, age: p.age, heightCm: p.heightCm, activity: p.activity };
+  const simReal: SimInput = { sex: p.sex, age: p.age, heightCm: p.heightCm, activity: p.activity, extra: p.exerciseKcalPerDay };
   const needIntake = intakeToReach(simReal, p.startWeightKg, p.goalWeightKg, days, maint);
   const realIntake = neededLoss <= 0 ? maint : Math.max(floor, needIntake, maint - maxDeficit);
   // Under 18, pregnant or eating-disorder history: no calorie deficit is ever planned (maintenance only).
@@ -158,7 +161,7 @@ export function buildFeasibility(p: Profile): Feasibility {
 
   // Goal: the intake the goal asks for, but never below the floor, assuming one activity level up.
   const boosted = NEXT_ACTIVITY[p.activity];
-  const maintBoost = tdee(p.sex, p.age, p.startWeightKg, p.heightCm, boosted);
+  const maintBoost = tdee(p.sex, p.age, p.startWeightKg, p.heightCm, boosted) + p.exerciseKcalPerDay;
   const simBoost: SimInput = { ...simReal, activity: boosted };
   const goalIntake = neededLoss <= 0 ? maintBoost : Math.max(floor, intakeToReach(simBoost, p.startWeightKg, p.goalWeightKg, days, maintBoost));
   const goal = maintOnly
@@ -208,13 +211,21 @@ export function waterTargetMl(weightKg: number, hot: boolean): number {
   return round(weightKg * 30 * (hot ? 1.15 : 1), 50);
 }
 
-/** Daily targets for a given calorie intake at a given current weight. */
+/** Daily targets for a given calorie intake at a given current weight, shaped by the user's diets. */
 export function targetsFor(p: Profile, kcal: number, weightKg: number): Targets {
+  const rules = rulesFor(p);
   const adj = adjustedWeight(weightKg, p.heightCm);
-  const proteinG = Math.round(adj * 1.6);
+  const proteinG = Math.round(adj * 1.6 * rules.proteinBoost);
   const proteinMinG = Math.round(adj * 1.2);
-  const fatG = Math.round((kcal * 0.27) / 9);
-  const carbG = Math.max(0, Math.round((kcal - proteinG * 4 - fatG * 9) / 4));
+  let carbG: number;
+  let fatG: number;
+  if (rules.carbPct !== undefined) {
+    carbG = Math.round((kcal * rules.carbPct) / 4);
+    fatG = Math.max(0, Math.round((kcal - proteinG * 4 - carbG * 4) / 9));
+  } else {
+    fatG = Math.round((kcal * (rules.fatPct ?? 0.27)) / 9);
+    carbG = Math.max(0, Math.round((kcal - proteinG * 4 - fatG * 9) / 4));
+  }
   return { kcal: Math.round(kcal), proteinG, proteinMinG, fatG, carbG, waterMl: waterTargetMl(weightKg, p.hotClimate), floor: calorieFloor(p.sex) };
 }
 

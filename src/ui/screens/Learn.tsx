@@ -31,7 +31,7 @@ export function Learn() {
         <ul class="bullets small">
           <li>Not medical advice. See a doctor if you have a condition or take medication.</li>
           <li>Never plans below 1,200 kcal (women) or 1,500 kcal (men) a day.</li>
-          <li>Food and price data are estimates.</li>
+          <li>Food and calorie data are estimates.</li>
         </ul>
       </Card>
       <Card title="Sources">

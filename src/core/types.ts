@@ -10,6 +10,8 @@ export interface Screening {
   pregnant: boolean;
   eatingDisorder: boolean;
   medical: boolean; // diabetes / heart / kidney / on medication that affects weight or diet
+  /** Anything else the user wants us to know (free text). Treated as "check with a doctor". */
+  other: string[];
 }
 
 /** Things the user says they can do today; used to pick a safe starting point for each movement. */
@@ -22,7 +24,11 @@ export type AbilityId =
   | 'walk30' // walk 30 minutes without stopping
   | 'stairs'; // climb two flights of stairs without a long rest
 
-export type StyleId = 'walking' | 'dance' | 'strength' | 'stretch' | 'intervals' | 'sports' | 'swim';
+/** One thing the user already does regularly: an activity id from the catalog (or "custom:<name>") and minutes per week. */
+export interface ExerciseEntry {
+  id: string;
+  minutes: number;
+}
 
 export interface Profile {
   name: string;
@@ -33,23 +39,26 @@ export interface Profile {
   startWeightKg: number;
   goalWeightKg: number;
   goalWeeks: number;
-  activity: Activity;
+  activity: Activity; // daily life (job, chores), not counting deliberate exercise
   baselineSteps: number;
-  /** Activities the user already does regularly (free choice from a list, may be empty). */
-  currentActivities: StyleId[];
-  /** Roughly how many minutes per week of deliberate exercise they do now. */
+  /** Deliberate exercise the user already does, each with minutes per week. */
+  currentExercise: ExerciseEntry[];
+  /** Total minutes per week across currentExercise (derived). */
   currentMinutesPerWeek: number;
-  /** Exercise styles they enjoy / are comfortable with; drives cardio choices. */
-  comfortable: StyleId[];
+  /** Average extra kcal/day burned by currentExercise (derived from METs and body weight). */
+  exerciseKcalPerDay: number;
+  /** Activities they enjoy / are comfortable with: catalog ids or "custom:<name>". */
+  comfortable: string[];
   /** What they can do right now; sets the starting step in each movement ladder. */
   abilities: AbilityId[];
   equipment: Equipment;
   limitations: Limitation[];
-  region: string; // region pack id
-  budgetPerDay: number; // in region currency
-  halal: boolean;
-  vegetarian: boolean;
-  allergens: string[];
+  country: string; // ISO 3166-1 alpha-2
+  region: string; // food pack id derived from the country
+  diets: string[]; // ids from data/diets.ts
+  hasAllergies: boolean;
+  allergens: string[]; // known allergen ids
+  avoidFoods: string[]; // free-text foods to avoid / other allergies
   hotClimate: boolean;
   startDate: string; // YYYY-MM-DD
   choice: PlanChoice;
@@ -65,8 +74,8 @@ export interface FoodEntry {
   p: number;
   c: number;
   f: number;
-  cost: number;
   meal: Meal;
+  estimated?: boolean; // calories were estimated by the app
 }
 
 export interface DayLog {
@@ -106,17 +115,19 @@ export interface Food {
   f: number;
   servingG: number;
   servingLabel: string;
-  price100: number; // price per 100 g in region currency (estimate)
-  tags?: string[]; // 'pork','fish','egg','nuts','dairy','gluten','soy','shellfish','meat'
+  /**
+   * Ingredient tags used for diets and allergies: meat, beef, pork, poultry, lamb, fish, shellfish, egg, dairy,
+   * gluten, grain, legume, soy, nuts, peanut, sesame, honey, alcohol, processed.
+   */
+  tags?: string[];
   meals?: Meal[];
   maxServings?: number;
+  estimated?: boolean;
 }
 
 export interface Region {
   id: string;
   name: string;
-  currency: string;
-  budgetDefault: number;
   note: string;
   foods: Food[];
 }
@@ -128,5 +139,4 @@ export interface Totals {
   p: number;
   c: number;
   f: number;
-  cost: number;
 }

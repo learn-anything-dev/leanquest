@@ -50,11 +50,11 @@ export function Chips<T extends string>({ options, value, onChange, multi, fit }
   value: T | T[];
   onChange: (v: T) => void;
   multi?: boolean;
-  fit?: boolean;
+  fit?: boolean | number;
 }) {
   const on = (id: T) => (multi ? (value as T[]).includes(id) : value === id);
   return (
-    <div class={`chips ${fit ? "fit" : ""}`} role={multi ? 'group' : 'radiogroup'}>
+    <div class={`chips ${fit ? "fit" : ""}`} style={typeof fit === "number" ? `--cols:${fit}` : undefined} role={multi ? 'group' : 'radiogroup'}>
       {options.map((o) => (
         <button type="button" key={o.id} class={`chip ${on(o.id) ? 'on' : ''}`} aria-pressed={on(o.id)} onClick={() => onChange(o.id)}>
           {o.label}
@@ -127,3 +127,59 @@ export function WeightChart({ raw, trend, plan, goalKg }: { raw: WeightPoint[]; 
 }
 
 export const kgFmt = (kg: number, units: 'metric' | 'imperial') => (units === 'imperial' ? `${(kg * 2.20462).toFixed(1)} lb` : `${kg.toFixed(1)} kg`);
+
+export function Options<T extends string>({ options, value, onChange, label }: {
+  options: { id: T; label: string; hint?: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  label: string;
+}) {
+  return (
+    <div class="options" role="radiogroup" aria-label={label}>
+      {options.map((o) => (
+        <button type="button" role="radio" key={o.id} class={value === o.id ? 'option on' : 'option'} aria-checked={value === o.id} onClick={() => onChange(o.id)}>
+          <span class="option-text"><b>{o.label}</b>{o.hint && <span>{o.hint}</span>}</span>
+          <i class="option-check" aria-hidden="true" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Tiny trend line for the last few readings. */
+export function Sparkline({ values, height = 44 }: { values: number[]; height?: number }) {
+  if (values.length < 2) return <div class="spark-empty">Add a few weigh-ins to see your trend</div>;
+  const W = 200;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || 1;
+  const pts = values.map((v, i) => `${((i / (values.length - 1)) * W).toFixed(1)},${(height - 4 - ((v - min) / span) * (height - 8)).toFixed(1)}`);
+  return (
+    <svg viewBox={`0 0 ${W} ${height}`} width="100%" height={height} preserveAspectRatio="none" role="img" aria-label="Weight trend, last readings">
+      <polyline points={pts.join(' ')} fill="none" stroke="var(--brand)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+/** Seven bars: calories per day against the target line (plain HTML so shapes never distort). */
+export function WeekBars({ days, target }: { days: { label: string; kcal: number; today: boolean }[]; target: number }) {
+  const top = Math.max(target * 1.25, ...days.map((d) => d.kcal), 1);
+  const pct = (v: number) => Math.min(100, (v / top) * 100);
+  return (
+    <div class="weekbars" role="img" aria-label="Calories eaten each day this week">
+      <div class="weekbars-plot">
+        <div class="weekbars-target" style={{ bottom: `${pct(target)}%` }}><span>target</span></div>
+        {days.map((d, i) => (
+          <div class="weekbars-col" key={i} title={`${d.kcal} kcal`}>
+            <div class={`weekbars-bar${d.kcal > target * 1.05 ? ' over' : ''}${d.today ? ' today' : ''}${d.kcal === 0 ? ' empty' : ''}`} style={{ height: d.kcal === 0 ? '4px' : `${pct(d.kcal)}%` }} />
+          </div>
+        ))}
+      </div>
+      <div class="weekbars-labels">{days.map((d, i) => <span key={i} class={d.today ? 'today' : ''}>{d.label}</span>)}</div>
+    </div>
+  );
+}
+
+export function Check({ done }: { done: boolean }) {
+  return <i class={`tick ${done ? 'done' : ''}`} aria-hidden="true" />;
+}

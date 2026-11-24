@@ -15,7 +15,6 @@ export interface Derived {
   profile: Profile;
   region: Region;
   foods: Food[];
-  priceOf: (f: Food) => number;
   feas: Feasibility;
   plan: PlanDetail;
   targets: Targets;
@@ -41,7 +40,6 @@ export function derive(s: AppState, todayStr: string): Derived | null {
   if (!profile) return null;
   const region = getRegion(profile.region);
   const foods = [...s.customFoods, ...region.foods];
-  const priceOf = (f: Food) => s.priceOverrides[f.id] ?? f.price100;
 
   const feas = buildFeasibility(profile);
   const plan = chosenPlan(profile);
@@ -55,7 +53,7 @@ export function derive(s: AppState, todayStr: string): Derived | null {
     date, kcal: d.food.reduce((a, e) => a + e.kcal, 0), complete: !!d.foodDone || d.food.reduce((a, e) => a + e.kcal, 0) >= 900,
   }));
   const est = s.adaptive ? adaptiveTdee(weightPoints.filter((w) => w.date >= profile.startDate), intakeDays) : null;
-  const formulaNow = tdee(profile.sex, profile.age, currentKg, profile.heightCm, plan.activity);
+  const formulaNow = tdee(profile.sex, profile.age, currentKg, profile.heightCm, plan.activity) + profile.exerciseKcalPerDay;
   let kcalTarget = plan.intake;
   let adaptive: Derived['adaptive'] = null;
   if (est) {
@@ -71,7 +69,7 @@ export function derive(s: AppState, todayStr: string): Derived | null {
 
   const week = Math.max(1, Math.floor(daysBetween(profile.startDate, todayStr) / 7) + 1);
   const foodDaysLast7 = [...Array(7)].filter((_, i) => (s.days[addDays(todayStr, -i)]?.food.length ?? 0) > 0).length;
-  const sim = { sex: profile.sex, age: profile.age, heightCm: profile.heightCm, activity: plan.activity };
+  const sim = { sex: profile.sex, age: profile.age, heightCm: profile.heightCm, activity: plan.activity, extra: profile.exerciseKcalPerDay };
   const onTrack = evaluateOnTrack({
     start: { date: profile.startDate, kg: profile.startWeightKg },
     weights: weightPoints.filter((w) => w.date >= profile.startDate),
@@ -83,7 +81,7 @@ export function derive(s: AppState, todayStr: string): Derived | null {
   const stepTarget = stepGoal(profile.baselineSteps, week);
   const game: GameInput = {
     days: s.days, weights: s.weights, workouts: s.workouts,
-    waterTarget: targets.waterMl, kcalTarget: targets.kcal, stepTarget, budgetPerDay: profile.budgetPerDay,
+    waterTarget: targets.waterMl, kcalTarget: targets.kcal, stepTarget,
     startDate: s.createdOn, today: todayStr, startWeight: profile.startWeightKg, trendKg,
     pushStep: s.progression.push?.step ?? 0,
   };
@@ -92,7 +90,7 @@ export function derive(s: AppState, todayStr: string): Derived | null {
   const badges = computeBadges(game, streak, xp.level);
   const quests = weeklyQuests(game);
 
-  return { profile, region, foods, priceOf, feas, plan, targets, currentKg, trendKg, weightPoints, week, today: todayStr, onTrack, adaptive, finish, game, streak, xp, badges, quests, level, stepTarget };
+  return { profile, region, foods, feas, plan, targets, currentKg, trendKg, weightPoints, week, today: todayStr, onTrack, adaptive, finish, game, streak, xp, badges, quests, level, stepTarget };
 }
 
 export { bmi };

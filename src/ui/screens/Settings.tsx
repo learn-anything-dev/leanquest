@@ -1,14 +1,17 @@
-import { useRef } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import { today } from '../../core/dates';
+import { activityName, weeklyExerciseKcal } from '../../data/activities';
+import { COUNTRIES, packFor } from '../../data/countries';
 import type { Derived } from '../../store/derive';
 import { getState, replaceState, resetAll, update, type AppState } from '../../store/store';
 import { updateProfile } from '../../store/actions';
-import { REGIONS } from '../../data/regions';
 import { Card } from '../common';
+import { ActivityPicker, AllergyPicker, CurrentExercise, DietPicker, toggle } from '../pickers';
 
 export function Settings({ s, d }: { s: AppState; d: Derived }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const p = d.profile;
+  const [exercises, setExercises] = useState(p.currentExercise.length > 0);
 
   const exportData = () => {
     const blob = new Blob([JSON.stringify(getState(), null, 2)], { type: 'application/json' });
@@ -34,17 +37,47 @@ export function Settings({ s, d }: { s: AppState; d: Derived }) {
       <Card title="Profile">
         <label class="f" for="sn">Name</label>
         <input id="sn" value={p.name} onChange={(e) => updateProfile({ name: (e.target as HTMLInputElement).value })} />
-        <label class="f" for="sr">Region (food & prices)</label>
-        <select id="sr" value={p.region} onChange={(e) => { const r = REGIONS.find((x) => x.id === (e.target as HTMLSelectElement).value)!; updateProfile({ region: r.id, budgetPerDay: r.budgetDefault }); }}>
-          {REGIONS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+        <label class="f" for="sc">Country</label>
+        <select id="sc" value={p.country} onChange={(e) => { const code = (e.target as HTMLSelectElement).value; updateProfile({ country: code, region: packFor(code) }); }}>
+          <option value="">Select your country</option>
+          {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
         </select>
-        <label class="f" for="sb">Daily food budget ({d.region.currency})</label>
-        <input id="sb" type="number" inputMode="decimal" value={p.budgetPerDay} onChange={(e) => updateProfile({ budgetPerDay: Math.max(0, +(e.target as HTMLInputElement).value) })} />
-        <label class="f">Equipment</label>
-        <select value={p.equipment} onChange={(e) => updateProfile({ equipment: (e.target as HTMLSelectElement).value as 'none' | 'home' | 'gym' })}>
+        <label class="f" for="se">Equipment</label>
+        <select id="se" value={p.equipment} onChange={(e) => updateProfile({ equipment: (e.target as HTMLSelectElement).value as 'none' | 'home' | 'gym' })}>
           <option value="none">None (bodyweight only)</option><option value="home">Home: dumbbells/bands</option><option value="gym">Gym access</option>
         </select>
         <label class="row"><input type="checkbox" checked={s.adaptive} onChange={(e) => update((x) => { x.adaptive = (e.target as HTMLInputElement).checked; })} /> <span>Adapt my calories to my measured burn</span></label>
+      </Card>
+
+      <Card title="Diet">
+        <DietPicker value={p.diets} onChange={(v) => updateProfile({ diets: v })} />
+      </Card>
+
+      <Card title="Allergies and foods to avoid">
+        <AllergyPicker hasAllergies={p.hasAllergies} allergens={p.allergens} avoidFoods={p.avoidFoods} onChange={(v) => updateProfile(v)} />
+      </Card>
+
+      <Card title="Exercise you do now">
+        <CurrentExercise
+          entries={p.currentExercise}
+          active={exercises}
+          onActive={setExercises}
+          weightKg={d.currentKg}
+          onChange={(entries) => updateProfile({
+            currentExercise: entries,
+            currentMinutesPerWeek: entries.reduce((a, e) => a + e.minutes, 0),
+            exerciseKcalPerDay: weeklyExerciseKcal(entries, p.startWeightKg) / 7,
+          })}
+        />
+      </Card>
+
+      <Card title="Exercise you enjoy">
+        <ActivityPicker
+          selected={p.comfortable}
+          onToggle={(id) => updateProfile({ comfortable: toggle(p.comfortable, id) })}
+          onAddCustom={(name) => { const id = `custom:${name}`; if (!p.comfortable.includes(id)) updateProfile({ comfortable: [...p.comfortable, id] }); }}
+        />
+        {p.comfortable.length > 0 && <p class="small muted">Selected: {p.comfortable.map(activityName).join(', ')}</p>}
       </Card>
 
       <Card title="Your data">
@@ -59,7 +92,7 @@ export function Settings({ s, d }: { s: AppState; d: Derived }) {
       <Card title="Start over">
         <button class="danger" onClick={() => { if (confirm('Delete everything and start over? This cannot be undone.')) resetAll(); }}>Reset everything</button>
       </Card>
-      <p class="disclaimer">LeanQuest v1 · Not medical advice. Nutrient and price data are estimates.</p>
+      <p class="disclaimer">LeanQuest v1 · Not medical advice. Food data is estimated.</p>
     </div>
   );
 }

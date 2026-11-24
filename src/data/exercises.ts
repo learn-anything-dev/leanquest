@@ -1,4 +1,4 @@
-import type { AbilityId, Equipment, Limitation, PatternState, Profile, StyleId } from '../core/types';
+import type { AbilityId, Equipment, Limitation, PatternState, Profile } from '../core/types';
 
 export type Pattern = 'push' | 'squat' | 'hinge' | 'lunge' | 'pull' | 'core';
 export type Kind = 'reps' | 'hold';
@@ -187,31 +187,6 @@ export function levelFromStates(states: Record<string, PatternState>): { label: 
   const steps = Object.values(states).map((s) => s.step);
   const avg = steps.length ? steps.reduce((a, b) => a + b, 0) / steps.length : 0;
   return { label: avg < 2 ? 'Beginner' : avg < 4 ? 'Intermediate' : 'Expert', avg };
-}
-
-// ---- Cardio / movement finishers matched to what the user enjoys ----
-
-export interface CardioOption {
-  id: StyleId;
-  name: string;
-  emoji: string;
-  how: string;
-  highImpact?: boolean;
-}
-
-export const CARDIO: CardioOption[] = [
-  { id: 'walking', name: 'Brisk walk', emoji: '🚶', how: 'Walk fast enough that you can talk but not sing. Add 2-3 min each week.' },
-  { id: 'dance', name: 'Dance session', emoji: '💃', how: 'Put on 3-4 songs you love and move. Low-impact steps are fine: side steps, arm sweeps, gentle bounces.' },
-  { id: 'intervals', name: 'Low-impact intervals', emoji: '⏱️', how: '30 s fast marching/high knees (no jumping), 60 s easy. Repeat 6-10 times.' },
-  { id: 'swim', name: 'Swim / water walking', emoji: '🏊', how: 'Easy, steady laps or walk in chest-deep water, 20-30 min. Kind to joints.' },
-  { id: 'sports', name: 'Play a sport', emoji: '🏸', how: 'Badminton, basketball, volleyball or any game for 30+ min counts.' },
-  { id: 'stretch', name: 'Stretch / yoga flow', emoji: '🧘', how: '10-15 min of gentle stretching. Great for recovery days and sleep.' },
-];
-
-export function pickCardio(comfortable: StyleId[], dayIndex: number): CardioOption {
-  const pref = CARDIO.filter((c) => comfortable.includes(c.id) && c.id !== 'stretch' && c.id !== 'strength' as StyleId);
-  const pool = pref.length ? pref : CARDIO.filter((c) => c.id === 'walking');
-  return pool[dayIndex % pool.length];
 }
 
 export function stepGoal(baseline: number, week: number): number {
