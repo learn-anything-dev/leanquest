@@ -240,3 +240,33 @@ describe('food estimator: ingredients and sauces', () => {
     }
   });
 });
+
+describe('scheduling sports on fixed days', () => {
+  const weekendSports = { ...prof, currentExercise: [{ id: 'badminton', minutes: 180, days: [5, 6] }, { id: 'basketball', minutes: 60, days: [5] }] };
+  it('puts sports on the chosen days and keeps strength off them', () => {
+    const r = recommend(weekendSports, 3, 'Beginner');
+    expect(r.schedule[5].kind).toBe('sport');
+    expect(r.schedule[6].kind).toBe('sport');
+    expect(r.schedule[5].title).toMatch(/Badminton/);
+    expect(r.schedule[5].title).toMatch(/Basketball/);
+    r.schedule.forEach((d, i) => { if (d.kind === 'strength') expect([5, 6]).not.toContain(i); });
+    expect(r.schedule.filter((d) => d.kind === 'strength')).toHaveLength(r.strengthDays);
+  });
+  it('splits weekly minutes across the days and counts sports as cardio', () => {
+    const base = recommend(prof, 3, 'Beginner');
+    const r = recommend(weekendSports, 3, 'Beginner');
+    expect(r.schedule[6].detail).toMatch(/90 min/);
+    expect(r.cardioSessions).toBeLessThan(base.cardioSessions);
+    expect(r.why[0]).toMatch(/Sat and Sun/);
+  });
+  it('still produces a full 7-day week when sports take most days', () => {
+    const busy = recommend({ ...prof, currentExercise: [{ id: 'run', minutes: 300, days: [0, 1, 2, 3, 4] }] }, 3, 'Beginner');
+    expect(busy.schedule).toHaveLength(7);
+    expect(busy.schedule.filter((d) => d.kind === 'sport')).toHaveLength(5);
+    expect(busy.schedule.filter((d) => d.kind === 'strength').length).toBeGreaterThan(0);
+  });
+  it('entries without days behave as before', () => {
+    const r = recommend({ ...prof, currentExercise: [{ id: 'badminton', minutes: 120 }] }, 3, 'Beginner');
+    expect(r.schedule.some((d) => d.kind === 'sport')).toBe(false);
+  });
+});

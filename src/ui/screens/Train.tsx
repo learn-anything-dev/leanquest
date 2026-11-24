@@ -76,6 +76,7 @@ export function Train({ s, d }: { s: AppState; d: Derived }) {
             </div>
           ))}
         </div>
+        <p class="small"><a href="#/settings">Change your sports and days</a></p>
         {rec.cautions.map((c) => <div class="banner warn small" key={c}>{c}</div>)}
       </Card>
 

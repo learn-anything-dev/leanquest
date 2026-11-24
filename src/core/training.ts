@@ -4,7 +4,7 @@ import type { Profile } from './types';
 import { ACTIVITIES, activityKcal, activityName, getActivity, isCustom } from '../data/activities';
 import { DAY_PLANS, stepGoal } from '../data/exercises';
 
-export type DayKind = 'strength' | 'cardio' | 'walk' | 'rest';
+export type DayKind = 'strength' | 'cardio' | 'sport' | 'walk' | 'rest';
 export type TrainingMode = 'standard' | 'gentle' | 'youth';
 
 export interface ScheduleDay {
@@ -124,18 +124,56 @@ export function recommend(p: Profile, week: number, level: 'Beginner' | 'Interme
     ? 'Easy to moderate: you can talk in full sentences.'
     : 'Moderate: you can talk but not sing.';
 
+  // The sports the user already does on fixed days are anchors; everything else is planned around them.
+  const sportByDay = new Map<number, { names: string[]; minutes: number; kcal: number }>();
+  let sportMinutes = 0;
+  for (const e of p.currentExercise) {
+    const days = (e.days ?? []).filter((d) => d >= 0 && d <= 6);
+    if (!days.length) continue;
+    const per = e.minutes / days.length;
+    for (const d of days) {
+      const cur = sportByDay.get(d) ?? { names: [], minutes: 0, kcal: 0 };
+      cur.names.push(activityName(e.id));
+      cur.minutes += per;
+      cur.kcal += activityKcal(e.id, p.startWeightKg, per);
+      sportByDay.set(d, cur);
+      sportMinutes += per;
+    }
+  }
+  const sportIdx = [...sportByDay.keys()].sort((a, b) => a - b);
+  // Sports count as cardio, so plan fewer extra cardio sessions.
+  cardioSessions = Math.max(0, cardioSessions - sportIdx.length);
+  if (sportIdx.length) {
+    const names = sportIdx.map((i) => DAYS[i]);
+    const dayNames = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
+    why.unshift(`Your sports on ${dayNames} are scheduled and count as cardio, so I planned fewer extra cardio sessions.`);
+  }
+
   // build the week
   const pool = cardioPool(p.comfortable, lowImpact);
-  const strengthIdx = strengthDays >= 3 ? [0, 2, 4] : [0, 3];
-  const cardioOrder = [1, 5, 3, 6, 2, 4].filter((i) => !strengthIdx.includes(i));
+  const strengthSets = strengthDays >= 3
+    ? [[0, 2, 4], [1, 3, 5], [0, 3, 5], [1, 2, 4], [0, 2, 3], [1, 3, 4], [2, 4, 6], [0, 1, 3]]
+    : [[0, 3], [1, 4], [0, 2], [1, 3], [2, 4], [0, 4], [2, 5], [1, 5]];
+  const freeOfSport = (set: number[]) => set.every((i) => !sportIdx.includes(i));
+  let strengthIdx = strengthSets.find(freeOfSport);
+  if (!strengthIdx) {
+    const open = [0, 1, 2, 3, 4, 5, 6].filter((i) => !sportIdx.includes(i));
+    strengthIdx = open.slice(0, strengthDays);
+  }
+  const cardioOrder = [1, 5, 3, 6, 2, 4, 0].filter((i) => !strengthIdx!.includes(i) && !sportIdx.includes(i));
   const cardioIdx = cardioOrder.slice(0, cardioSessions);
-  const free = [0, 1, 2, 3, 4, 5, 6].filter((i) => !strengthIdx.includes(i) && !cardioIdx.includes(i));
-  const restIdx = free.includes(6) ? 6 : free.length > 1 ? free[free.length - 1] : -1;
+  const free = [0, 1, 2, 3, 4, 5, 6].filter((i) => !strengthIdx!.includes(i) && !cardioIdx.includes(i) && !sportIdx.includes(i));
+  const restIdx = free.includes(6) ? 6 : free.length > 1 ? free[free.length - 1] : sportIdx.length ? -1 : -1;
 
   let s = 0;
   let c = 0;
   const schedule: ScheduleDay[] = DAYS.map((day, i) => {
-    if (strengthIdx.includes(i)) {
+    const sport = sportByDay.get(i);
+    if (sport) {
+      const kcal = Math.round(sport.kcal / 10) * 10;
+      return { day, kind: 'sport', title: sport.names.join(' + '), detail: `${Math.round(sport.minutes)} min · about ${kcal} kcal` };
+    }
+    if (strengthIdx!.includes(i)) {
       const n = s++ % DAY_PLANS.length;
       return { day, kind: 'strength', title: `Strength · Day ${n + 1}`, detail: DAY_PLANS[n].map((x) => PATTERN_NAME[x]).join(', '), strengthDay: n };
     }
@@ -150,7 +188,7 @@ export function recommend(p: Profile, week: number, level: 'Beginner' | 'Interme
 
   return {
     mode, headline, why, strengthDays, cardioSessions, cardioMinutes, steps,
-    weeklyMinutes: strengthDays * 30 + cardioSessions * cardioMinutes,
+    weeklyMinutes: Math.round(strengthDays * 30 + cardioSessions * cardioMinutes + sportMinutes),
     intensity, lowImpact, schedule, cautions,
   };
 }

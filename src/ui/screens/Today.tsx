@@ -4,7 +4,7 @@ import { COACH_LINES, challengeFor } from '../../core/gamify';
 import { sumEntries } from '../../core/nutrition';
 import { recommend, todaysSession, weekdayIndex } from '../../core/training';
 import type { Derived } from '../../store/derive';
-import { addWater, setSteps, setWeight, toggleChallenge } from '../../store/actions';
+import { addWater, setSteps, setWeight, toggleChallenge, toggleMoveDone } from '../../store/actions';
 import { dayOf, type AppState } from '../../store/store';
 import { Bar, Check, Ring, Sparkline, WeekBars, kgFmt } from '../common';
 
@@ -15,7 +15,7 @@ const STATUS_UI: Record<string, { pill: string; label: string }> = {
   yellow: { pill: 'warn', label: 'Slightly behind' },
   red: { pill: 'bad', label: 'Behind plan' },
 };
-const KIND_LABEL = { strength: 'Strength', cardio: 'Cardio', walk: 'Walk', rest: 'Rest' } as const;
+const KIND_LABEL = { strength: 'Strength', cardio: 'Cardio', sport: 'Sport', walk: 'Walk', rest: 'Rest' } as const;
 const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 function Macro({ label, value, target }: { label: string; value: number; target: number }) {
@@ -54,7 +54,7 @@ export function Today({ s, d }: { s: AppState; d: Derived }) {
     { id: 'food', label: 'Log your meals', done: log.food.length >= 2 || !!log.foodDone, href: '#/food' },
     { id: 'water', label: 'Reach your water goal', done: log.waterMl >= d.targets.waterMl * 0.95, href: undefined },
     { id: 'steps', label: `Walk ${d.stepTarget.toLocaleString()} steps`, done: (log.steps ?? 0) >= d.stepTarget, href: undefined },
-    { id: 'move', label: session.kind === 'strength' ? 'Finish today\'s workout' : session.kind === 'rest' ? 'Rest day' : `${session.title}, ${session.detail}`, done: session.kind === 'strength' ? todaysWorkout : session.kind === 'rest', href: session.kind === 'strength' ? '#/train' : undefined },
+    { id: 'move', label: session.kind === 'strength' ? 'Finish today\'s workout' : session.kind === 'rest' ? 'Rest day' : `${session.title}, ${session.detail}`, done: session.kind === 'strength' ? todaysWorkout : session.kind === 'rest' ? true : (session.kind === 'cardio' || session.kind === 'sport') ? !!log.moveDone : false, href: session.kind === 'strength' ? '#/train' : undefined, toggle: (session.kind === 'cardio' || session.kind === 'sport') ? () => toggleMoveDone(d.today) : undefined },
     { id: 'weigh', label: 'Weigh in', done: weighedToday, href: undefined },
   ];
   const doneCount = tasks.filter((x) => x.done).length + (log.challengeDone ? 1 : 0);
@@ -116,7 +116,9 @@ export function Today({ s, d }: { s: AppState; d: Derived }) {
           <div class="today-plan"><b>{session.title}</b><span>{session.detail}</span></div>
           {session.kind === 'strength'
             ? (todaysWorkout ? <div class="banner ok">Workout done today.</div> : <a class="btn block" href="#/train">Start workout</a>)
-            : <a class="btn ghost block" href="#/train">See your week</a>}
+            : (session.kind === 'cardio' || session.kind === 'sport')
+              ? <button class={log.moveDone ? 'soft block' : 'block'} onClick={() => toggleMoveDone(d.today)}>{log.moveDone ? 'Done. Tap to undo' : 'Mark as done'}</button>
+              : <a class="btn ghost block" href="#/train">See your week</a>}
         </section>
 
         <section class="card d-check">
@@ -125,6 +127,7 @@ export function Today({ s, d }: { s: AppState; d: Derived }) {
           <div class="tasks">
             {tasks.map((x) => {
               const inner = (<><Check done={x.done} /><span class={x.done ? 'task-label done' : 'task-label'}>{x.label}</span></>);
+              if (x.toggle) return <button type="button" class="task as-button" key={x.id} onClick={x.toggle} aria-pressed={x.done}>{inner}</button>;
               return x.href ? <a class="task" key={x.id} href={x.href}>{inner}</a> : <div class="task" key={x.id}>{inner}</div>;
             })}
             <button type="button" class="task as-button" onClick={() => toggleChallenge(d.today)} aria-pressed={!!log.challengeDone}>

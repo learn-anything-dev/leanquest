@@ -176,8 +176,8 @@ button, .btn { white-space: nowrap; }
 @media (max-width: 380px) { .chips.fit .chip { font-size: .76rem; padding-left: 2px; padding-right: 2px; } }
 
 /* primary buttons get the mockup's soft blue gradient */
-button:not(.ghost):not(.soft):not(.danger):not(.chip):not(.option):not(.task), .btn:not(.ghost) { background: linear-gradient(180deg, #3a72f5, #1f4fd8); border-color: #1f4fd8; }
-button:not(.ghost):not(.soft):not(.danger):not(.chip):not(.option):not(.task):hover, .btn:not(.ghost):hover { background: linear-gradient(180deg, #2f66ea, #1a43b8); }
+button:where(:not(.ghost, .soft, .danger, .chip, .option, .task, .day-chip)), .btn:where(:not(.ghost)) { background: linear-gradient(180deg, #3a72f5, #1f4fd8); border-color: #1f4fd8; }
+button:where(:not(.ghost, .soft, .danger, .chip, .option, .task, .day-chip)):hover, .btn:where(:not(.ghost)):hover { background: linear-gradient(180deg, #2f66ea, #1a43b8); }
 .splash { background: radial-gradient(520px 260px at 80% 0%, rgba(37, 99, 235, .5), transparent 65%), linear-gradient(180deg, #0a1226, #0c1a42); }
 
 /* pickers (activities, diets, allergies) */
@@ -228,3 +228,17 @@ button:not(.ghost):not(.soft):not(.danger):not(.chip):not(.option):not(.task):ho
 .unknown label.f { margin-bottom: 0; }
 .unknown-part { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3); border: 1px solid var(--line); border-radius: 12px; background: #fff; }
 .unknown-part b { font-size: .95rem; font-weight: 600; text-transform: capitalize; }
+
+/* sport schedule: day chips under each activity */
+.ex-row { flex-direction: column; align-items: stretch; gap: var(--s3); }
+.ex-top { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); }
+.ex-days-label { font-size: .8rem; color: var(--ink-2); margin-bottom: var(--s2); }
+.ex-days-label small { color: var(--muted); font-size: .78rem; }
+.day-chips { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--s1); }
+.day-chip { min-height: 40px; padding: 0; border-radius: 10px; border: 1px solid var(--line-2); background: #fff; color: var(--ink-2); font-size: .8rem; font-weight: 500; }
+.day-chip:hover { background: #fff; border-color: var(--ink); }
+.day-chip.on { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 700; }
+.day-shortcuts { display: flex; gap: var(--s2); margin-top: var(--s2); flex-wrap: wrap; }
+@media (max-width: 420px) { .ex-top { flex-direction: column; align-items: stretch; gap: var(--s2); } }
+.sched-row.sport .sched-day { color: #b45309; }
+.sched-row.sport .sched-main b { color: var(--ink); }

@@ -3,6 +3,8 @@ import type { ExerciseEntry, Screening } from '../core/types';
 import { ACTIVITIES, CATEGORIES, activityKcal, activityName, isCustom, searchActivities } from '../data/activities';
 import { ALLERGENS, DIETS, getDiet } from '../data/diets';
 
+const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
 export function toggle<T>(arr: T[], v: T): T[] {
   return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 }
@@ -73,7 +75,16 @@ export function CurrentExercise({ entries, onChange, weightKg, active, onActive 
   const ids = entries.map((e) => e.id);
   const total = entries.reduce((a, e) => a + e.minutes, 0);
   const kcal = entries.reduce((a, e) => a + activityKcal(e.id, weightKg, e.minutes), 0);
-  const setMinutes = (id: string, minutes: number) => onChange(entries.map((e) => (e.id === id ? { ...e, minutes: Math.max(0, Math.min(2000, minutes)) } : e)));
+  const clampMin = (n: number) => Math.max(0, Math.min(2000, n));
+  const nDays = (e: ExerciseEntry) => e.days?.length ?? 0;
+  const perSession = (e: ExerciseEntry) => (nDays(e) ? Math.round(e.minutes / nDays(e)) : e.minutes);
+  /** With days chosen the number is minutes per session; without days it is minutes per week. */
+  const setMinutes = (id: string, v: number) => onChange(entries.map((e) => (e.id === id ? { ...e, minutes: clampMin(nDays(e) ? v * nDays(e) : v) } : e)));
+  const setDays = (id: string, days: number[]) => onChange(entries.map((e) => {
+    if (e.id !== id) return e;
+    const per = nDays(e) ? e.minutes / nDays(e) : e.minutes;
+    return { ...e, days, minutes: clampMin(Math.round(days.length ? per * days.length : per)) };
+  }));
   return (
     <div class="stack-sm">
       <div class="options" role="radiogroup" aria-label="Do you already exercise">
@@ -92,13 +103,28 @@ export function CurrentExercise({ entries, onChange, weightKg, active, onActive 
           />
           {entries.length > 0 && (
             <div class="ex-rows">
-              <div class="ex-head">How long each week?</div>
+              <div class="ex-head">When and how long?</div>
               {entries.map((e) => (
                 <div class="ex-row" key={e.id}>
-                  <div class="ex-name"><b>{activityName(e.id)}</b><span>about {Math.round(activityKcal(e.id, weightKg, e.minutes))} kcal a week</span></div>
-                  <div class="ex-min">
-                    <input type="number" inputMode="numeric" min="0" value={e.minutes} aria-label={`Minutes per week: ${activityName(e.id)}`} onInput={(ev) => setMinutes(e.id, +(ev.target as HTMLInputElement).value)} />
-                    <span>min / week</span>
+                  <div class="ex-top">
+                    <div class="ex-name"><b>{activityName(e.id)}</b><span>{nDays(e) ? `${nDays(e)}× a week · ` : ''}about {Math.round(activityKcal(e.id, weightKg, e.minutes))} kcal a week</span></div>
+                    <div class="ex-min">
+                      <input type="number" inputMode="numeric" min="0" value={perSession(e)} aria-label={nDays(e) ? `Minutes each time: ${activityName(e.id)}` : `Minutes per week: ${activityName(e.id)}`} onInput={(ev) => setMinutes(e.id, +(ev.target as HTMLInputElement).value)} />
+                      <span>{nDays(e) ? 'min each day' : 'min / week'}</span>
+                    </div>
+                  </div>
+                  <div class="ex-days">
+                    <div class="ex-days-label">Which days? <small>Leave empty if it varies.</small></div>
+                    <div class="day-chips" role="group" aria-label={`Days for ${activityName(e.id)}`}>
+                      {DAY_LABELS.map((lab, i) => (
+                        <button type="button" key={lab} class={e.days?.includes(i) ? 'day-chip on' : 'day-chip'} aria-pressed={!!e.days?.includes(i)} onClick={() => setDays(e.id, toggle(e.days ?? [], i).sort((a, b) => a - b))}>{lab}</button>
+                      ))}
+                    </div>
+                    <div class="day-shortcuts">
+                      <button type="button" class="ghost small" onClick={() => setDays(e.id, [5, 6])}>Weekends</button>
+                      <button type="button" class="ghost small" onClick={() => setDays(e.id, [0, 1, 2, 3, 4])}>Weekdays</button>
+                      {nDays(e) > 0 && <button type="button" class="ghost small" onClick={() => setDays(e.id, [])}>Clear</button>}
+                    </div>
                   </div>
                 </div>
               ))}

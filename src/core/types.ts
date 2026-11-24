@@ -27,7 +27,10 @@ export type AbilityId =
 /** One thing the user already does regularly: an activity id from the catalog (or "custom:<name>") and minutes per week. */
 export interface ExerciseEntry {
   id: string;
+  /** Total minutes per week. */
   minutes: number;
+  /** Days it is done, Monday = 0 ... Sunday = 6. Empty or missing means no fixed days. */
+  days?: number[];
 }
 
 export interface Profile {
@@ -84,6 +87,7 @@ export interface DayLog {
   steps?: number;
   challengeDone?: boolean;
   foodDone?: boolean; // user marked the day's food log as complete
+  moveDone?: boolean; // user marked today's planned sport or cardio as done
 }
 
 export interface WorkoutItem {

@@ -62,6 +62,13 @@ export function toggleChallenge(date: string) {
   });
 }
 
+export function toggleMoveDone(date: string) {
+  update((s) => {
+    const d = day(s, date);
+    d.moveDone = !d.moveDone;
+  });
+}
+
 export function setFoodDone(date: string, v: boolean) {
   update((s) => {
     day(s, date).foodDone = v;
