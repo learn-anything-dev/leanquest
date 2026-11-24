@@ -57,6 +57,8 @@ export interface Profile {
   equipment: Equipment;
   /** Days (Monday = 0) the user can train. Missing or empty means every day. */
   trainDays?: number[];
+  /** Days (Monday = 0) the user can walk or exercise outside. Missing or empty means none: a home-only plan. */
+  outdoorDays?: number[];
   limitations: Limitation[];
   country: string; // ISO 3166-1 alpha-2
   region: string; // food pack id derived from the country

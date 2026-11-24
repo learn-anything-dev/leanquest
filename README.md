@@ -1,6 +1,6 @@
 # LeanQuest 🦁
 
-A free, offline, gamified weight-loss coach. Bodyweight training first, optional home/gym equipment, budget-aware
+A free, offline home-workout and nutrition coach for weight loss. Bodyweight training at home first, optional equipment, diet- and country-aware
 food for your country, calorie + water tracking, and an honest "am I on track?" engine.
 Everything runs in the browser; your data stays on your device (export/import a JSON backup in Settings).
 

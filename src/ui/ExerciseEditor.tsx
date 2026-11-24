@@ -6,16 +6,29 @@ import { CurrentExercise, DAY_LABELS, toggle } from './pickers';
 
 const ALL = [0, 1, 2, 3, 4, 5, 6];
 
-/** "Which days can you train?" Empty or all seven means every day. Never lets the last day be removed. */
-export function TrainDaysPicker({ value, onChange }: { value: number[]; onChange: (v: number[]) => void }) {
-  const selected = value.length ? value : ALL;
+/**
+ * A row of weekday chips. With emptyMeans "all" an empty list means every day (and the last day cannot be removed);
+ * with "none" an empty list means no days.
+ */
+export function DaysPicker({ value, onChange, label, emptyMeans }: {
+  value: number[];
+  onChange: (v: number[]) => void;
+  label: string;
+  emptyMeans: 'all' | 'none';
+}) {
+  const selected = emptyMeans === 'all' && !value.length ? ALL : value;
   const commit = (next: number[]) => {
-    if (!next.length) return;
-    onChange(next.length === 7 ? [] : [...next].sort((a, b) => a - b));
+    const sorted = [...new Set(next)].sort((a, b) => a - b);
+    if (emptyMeans === 'all') {
+      if (!sorted.length) return;
+      onChange(sorted.length === 7 ? [] : sorted);
+    } else {
+      onChange(sorted);
+    }
   };
   return (
     <div class="picker">
-      <div class="day-chips" role="group" aria-label="Days I can train">
+      <div class="day-chips" role="group" aria-label={label}>
         {DAY_LABELS.map((lab, i) => (
           <button type="button" key={lab} class={selected.includes(i) ? 'day-chip on' : 'day-chip'} aria-pressed={selected.includes(i)} onClick={() => commit(toggle(selected, i))}>{lab}</button>
         ))}
@@ -24,6 +37,28 @@ export function TrainDaysPicker({ value, onChange }: { value: number[]; onChange
         <button type="button" class="ghost small" onClick={() => commit(ALL)}>Every day</button>
         <button type="button" class="ghost small" onClick={() => commit([0, 1, 2, 3, 4])}>Weekdays</button>
         <button type="button" class="ghost small" onClick={() => commit([5, 6])}>Weekends</button>
+        {emptyMeans === 'none' && selected.length > 0 && <button type="button" class="ghost small" onClick={() => commit([])}>None</button>}
+      </div>
+    </div>
+  );
+}
+
+/** Days you can train, and days you can go outside. Without outdoor days the plan is a home-only plan. */
+export function ScheduleSettings({ trainDays, outdoorDays, onChange }: {
+  trainDays: number[];
+  outdoorDays: number[];
+  onChange: (patch: { trainDays?: number[]; outdoorDays?: number[] }) => void;
+}) {
+  return (
+    <div class="stack-sm">
+      <div>
+        <label class="f">Days I can train at home</label>
+        <DaysPicker value={trainDays} emptyMeans="all" label="Days I can train" onChange={(v) => onChange({ trainDays: v })} />
+      </div>
+      <div>
+        <label class="f">Days I can go outside <small>(optional)</small></label>
+        <p class="muted small">Walks and outdoor cardio only appear on these days. Leave it empty for a home-only plan.</p>
+        <DaysPicker value={outdoorDays} emptyMeans="none" label="Days I can go outside" onChange={(v) => onChange({ outdoorDays: v })} />
       </div>
     </div>
   );
@@ -47,13 +82,15 @@ export function ExerciseEditor({ profile, weightKg }: { profile: Profile; weight
   );
 }
 
-/** Read-only summary of sports and training days, shown when the editor is closed. */
-export function scheduleSummary(profile: Profile): { sports: string[]; days: string } {
+/** Read-only summary of sports, training days and outdoor days, shown when the editor is closed. */
+export function scheduleSummary(profile: Profile): { sports: string[]; days: string; outdoor: string } {
   const sports = profile.currentExercise.map((e) => {
     const d = e.days ?? [];
     return d.length ? `${activityName(e.id)} on ${d.map((i) => DAY_LABELS[i]).join(', ')}` : `${activityName(e.id)} (no fixed days)`;
   });
   const td = profile.trainDays ?? [];
   const days = !td.length || td.length === 7 ? 'every day' : td.map((i) => DAY_LABELS[i]).join(', ');
-  return { sports, days };
+  const od = profile.outdoorDays ?? [];
+  const outdoor = od.length ? od.map((i) => DAY_LABELS[i]).join(', ') : 'none (home plan)';
+  return { sports, days, outdoor };
 }

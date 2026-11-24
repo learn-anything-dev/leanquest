@@ -74,7 +74,7 @@ export const ACTIVITIES: Activity[] = [
   A('bodyweight-hard', 'Bodyweight training (hard)', 'Strength & conditioning', 8.0, 'low', false),
   A('weights-light', 'Weights / resistance bands', 'Strength & conditioning', 3.5, 'low', false),
   A('weights-hard', 'Heavy weight training', 'Strength & conditioning', 6.0, 'low', false),
-  A('circuit', 'Circuit training', 'Strength & conditioning', 6.0, 'low', true, 'Rotate through stations with short rests.'),
+  A('circuit', 'Circuit training', 'Strength & conditioning', 6.0, 'low', true, 'Rotate squats, push-ups, marching and core moves with short rests. Bodyweight only, no equipment.'),
   A('hiit', 'HIIT', 'Strength & conditioning', 8.0, 'high', true, 'Short hard bursts with easy recovery.'),
   A('kettlebell', 'Kettlebell training', 'Strength & conditioning', 6.0, 'low', false),
   A('crossfit', 'CrossFit-style training', 'Strength & conditioning', 8.0, 'high', true),

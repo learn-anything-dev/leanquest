@@ -117,18 +117,22 @@ describe('training recommendation', () => {
   it('goal plan asks for more activity than the realistic plan', () => {
     const real = recommend(prof, 5, 'Beginner');
     const goal = recommend({ ...prof, choice: 'goal' }, 5, 'Beginner');
-    expect(goal.cardioSessions).toBeGreaterThan(real.cardioSessions);
-    expect(goal.steps).toBeGreaterThanOrEqual(real.steps);
+    expect(goal.weeklyMinutes).toBeGreaterThan(real.weeklyMinutes);
     expect(goal.cautions.length).toBeGreaterThan(0);
+    const outdoor = { ...prof, outdoorDays: [0, 1, 2, 3, 4, 5, 6] };
+    expect(recommend({ ...outdoor, choice: 'goal' }, 5, 'Beginner').cardioSessions).toBeGreaterThan(recommend(outdoor, 5, 'Beginner').cardioSessions);
   });
   it('eases in during the first two weeks', () => {
-    expect(recommend(prof, 1, 'Beginner').strengthDays).toBe(2);
-    expect(recommend(prof, 3, 'Beginner').strengthDays).toBe(3);
+    expect(recommend(prof, 1, 'Beginner').strengthDays).toBe(4);
+    expect(recommend(prof, 3, 'Beginner').strengthDays).toBe(4);
+    const outdoor = { ...prof, outdoorDays: [0, 1, 2, 3, 4, 5, 6] };
+    expect(recommend(outdoor, 1, 'Beginner').strengthDays).toBe(2);
+    expect(recommend(outdoor, 3, 'Beginner').strengthDays).toBe(3);
   });
   it('is low impact for high BMI or sore knees, and uses the cardio the user likes', () => {
     expect(recommend(prof, 3, 'Beginner').lowImpact).toBe(true);
     expect(recommend({ ...prof, startWeightKg: 55, limitations: ['knees'] }, 3, 'Beginner').lowImpact).toBe(true);
-    expect(recommend(prof, 3, 'Beginner').schedule.filter((d) => d.kind === 'cardio').map((d) => d.title)).toEqual(['Social / freestyle dancing', 'Brisk walking']);
+    expect(recommend(prof, 3, 'Beginner').schedule.filter((d) => d.kind === 'cardio').map((d) => d.title)).toEqual(['Circuit training', 'Social / freestyle dancing']);
   });
   it('is gentle for eating-disorder history and never frames it as calorie burning', () => {
     const r = recommend({ ...prof, screening: { ...prof.screening, eatingDisorder: true } }, 3, 'Beginner');

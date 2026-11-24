@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { activityName } from '../data/activities';
-import { cardioPool, recommend, spreadDays } from './training';
+import { HOME_CARDIO, cardioPool, homeCardioPool, recommend, spreadDays } from './training';
 import type { ExerciseEntry, PlanChoice, Profile } from './types';
 
 const base: Profile = {
@@ -22,6 +22,7 @@ const sportsVariants: ExerciseEntry[][] = [
 ];
 const comfortVariants = [['pickleball', 'walk-brisk'], ['pickleball'], ['dance-social'], [], ['badminton', 'tennis', 'jump-rope'], ['custom:Pole fitness', 'zumba']];
 const trainDayVariants: (number[] | undefined)[] = [undefined, [], [5, 6], [0, 2, 4], [1, 3, 5, 6], [3], [0, 1, 2, 3, 4]];
+const outdoorVariants: (number[] | undefined)[] = [undefined, [], [5, 6], [0, 1, 2, 3, 4, 5, 6], [6]];
 const choices: PlanChoice[] = ['realistic', 'goal'];
 const weeks = [1, 2, 3, 8, 20];
 const levels = ['Beginner', 'Intermediate', 'Expert'] as const;
@@ -29,11 +30,11 @@ const levels = ['Beginner', 'Intermediate', 'Expert'] as const;
 describe('weekly schedule invariants (every combination)', () => {
   it('always follows the rules', { timeout: 120000 }, () => {
     let checked = 0;
-    for (const sports of sportsVariants) for (const comfortable of comfortVariants) for (const trainDays of trainDayVariants)
-      for (const choice of choices) for (const week of weeks) for (const level of levels) for (const weight of [55, 80]) {
-        const p: Profile = { ...base, currentExercise: sports, comfortable, trainDays, choice, startWeightKg: weight, limitations: weight === 55 ? [] : ['knees'] };
+    for (const sports of sportsVariants) for (const comfortable of comfortVariants) for (const trainDays of trainDayVariants) for (const outdoorDays of outdoorVariants)
+      for (const choice of choices) for (const week of [1, 3, 8]) for (const level of levels) for (const weight of [55, 80]) {
+        const p: Profile = { ...base, currentExercise: sports, comfortable, trainDays, outdoorDays, choice, startWeightKg: weight, limitations: weight === 55 ? [] : ['knees'] };
         const r = recommend(p, week, level);
-        const ctx = JSON.stringify({ sports: sports.map((s) => s.id + ':' + (s.days ?? []).join('')), comfortable, trainDays, choice, week, level, weight });
+        const ctx = JSON.stringify({ sports: sports.map((s) => s.id + ':' + (s.days ?? []).join('')), comfortable, trainDays, outdoorDays, choice, week, level, weight });
 
         // 7 well-formed days, in order
         expect(r.schedule, ctx).toHaveLength(7);
@@ -70,9 +71,20 @@ describe('weekly schedule invariants (every combination)', () => {
         // at most one "easy stretch" rest day, and numbers are sane
         expect(r.schedule.filter((d) => d.kind === 'rest' && d.detail.startsWith('Easy')).length, ctx).toBeLessThanOrEqual(1);
         expect(Number.isFinite(r.weeklyMinutes) && r.weeklyMinutes > 0, ctx).toBe(true);
+        // home first: walks and outdoor cardio only on outdoor days; indoor days only get home cardio; one rest day is guaranteed
+        const outdoorSet = new Set(outdoorDays ?? []);
+        const homeNames = new Set(HOME_CARDIO.map((id) => activityName(id).toLowerCase()));
+        r.schedule.forEach((d, i) => {
+          if (d.kind === 'walk') expect(outdoorSet.has(i), ctx).toBe(true);
+          if (d.kind === 'cardio' && !outdoorSet.has(i)) expect(homeNames.has(d.title.toLowerCase()), ctx).toBe(true);
+        });
+        expect(r.homeFocused, ctx).toBe(outdoorSet.size <= 2);
+        expect(r.outdoorDays, ctx).toEqual([...outdoorSet].sort((a, b) => a - b));
+        if (expectedSportDays.size < 7) expect(r.schedule.some((d) => d.kind === 'rest'), ctx).toBe(true);
+        expect(r.schedule.filter((d) => ['sport', 'strength', 'cardio'].includes(d.kind)).length, ctx).toBeLessThanOrEqual(Math.max(6, expectedSportDays.size));
         checked++;
       }
-    expect(checked).toBeGreaterThan(5000);
+    expect(checked).toBeGreaterThan(20000);
   });
 });
 
@@ -128,5 +140,36 @@ describe('cardio suggestions', () => {
   it('swaps high-impact activities when joints need care', () => {
     expect(cardioPool(['jump-rope', 'run'], true).map((x) => x.id)).not.toContain('run');
     expect(cardioPool(['jump-rope', 'run'], false).map((x) => x.id)).toContain('run');
+  });
+});
+
+describe('home workout week: sport on Saturday, no outdoors on weekdays, bodyweight on Sunday', () => {
+  const p: Profile = {
+    ...base, choice: 'goal', comfortable: ['pickleball', 'walk-brisk'], outdoorDays: [5, 6],
+    currentExercise: [{ id: 'pickleball', minutes: 60, days: [5] }],
+  };
+  it('puts bodyweight strength on weekdays and Sunday, the sport on Saturday, and no walking Monday to Friday', () => {
+    const r = recommend(p, 3, 'Beginner');
+    const kinds = r.schedule.map((d) => d.kind);
+    expect(kinds[5]).toBe('sport');
+    expect(r.schedule[5].title).toBe('Pickleball');
+    expect(kinds[6]).toBe('strength');
+    expect(r.strengthDays).toBe(4);
+    for (let i = 0; i < 5; i++) expect(kinds[i]).not.toBe('walk');
+    r.schedule.filter((d) => d.kind === 'cardio').forEach((d) => expect(HOME_CARDIO.map((id) => activityName(id))).toContain(d.title));
+    expect(kinds.filter((k) => k === 'rest').length).toBeGreaterThanOrEqual(1);
+    expect(r.schedule.filter((d) => /pickleball/i.test(d.title))).toHaveLength(1);
+  });
+  it('with no outdoor days at all it is a pure home plan', () => {
+    const r = recommend({ ...p, outdoorDays: [] }, 3, 'Beginner');
+    expect(r.schedule.some((d) => d.kind === 'walk')).toBe(false);
+    expect(r.homeFocused).toBe(true);
+  });
+  it('home cardio pool always has at least two choices and never outdoor or venue activities', () => {
+    for (const comfortable of comfortVariants) {
+      const pool = homeCardioPool(comfortable, true);
+      expect(pool.length).toBeGreaterThanOrEqual(2);
+      pool.forEach((x) => expect(HOME_CARDIO).toContain(x.id));
+    }
   });
 });

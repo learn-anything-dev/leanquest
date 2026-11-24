@@ -34,6 +34,11 @@ export function Today({ s, d }: { s: AppState; d: Derived }) {
   const todaysWorkout = s.workouts.some((w) => w.date === d.today);
   const rec = recommend(d.profile, d.week, d.level.label);
   const session = todaysSession(rec, d.today);
+  const outdoorToday = rec.outdoorDays.includes(weekdayIndex(d.today));
+  const weekStart = addDays(d.today, -weekdayIndex(d.today));
+  const inThisWeek = (date: string) => date >= weekStart && date <= addDays(weekStart, 6);
+  const sessionsDone = s.workouts.filter((w) => inThisWeek(w.date)).length + Object.entries(s.days).filter(([date, day]) => day.moveDone && inThisWeek(date)).length;
+  const sessionsPlanned = rec.strengthDays + rec.cardioSessions + rec.sportDays.length;
   const st = STATUS_UI[d.onTrack.status];
   const lines = COACH_LINES[d.onTrack.status];
   const line = lines[new Date().getDate() % lines.length];
@@ -53,7 +58,7 @@ export function Today({ s, d }: { s: AppState; d: Derived }) {
   const tasks = [
     { id: 'food', label: 'Log your meals', done: log.food.length >= 2 || !!log.foodDone, href: '#/food' },
     { id: 'water', label: 'Reach your water goal', done: log.waterMl >= d.targets.waterMl * 0.95, href: undefined },
-    { id: 'steps', label: `Walk ${d.stepTarget.toLocaleString()} steps`, done: (log.steps ?? 0) >= d.stepTarget, href: undefined },
+    ...(outdoorToday ? [{ id: 'steps', label: `Walk ${d.stepTarget.toLocaleString()} steps`, done: (log.steps ?? 0) >= d.stepTarget, href: undefined }] : []),
     { id: 'move', label: session.kind === 'strength' ? 'Finish today\'s workout' : session.kind === 'rest' ? 'Rest day' : `${session.title}, ${session.detail}`, done: session.kind === 'strength' ? todaysWorkout : session.kind === 'rest' ? true : (session.kind === 'cardio' || session.kind === 'sport') ? !!log.moveDone : false, href: session.kind === 'strength' ? '#/train' : undefined, toggle: (session.kind === 'cardio' || session.kind === 'sport') ? () => toggleMoveDone(d.today) : undefined },
     { id: 'weigh', label: 'Weigh in', done: weighedToday, href: undefined },
   ];
@@ -147,12 +152,21 @@ export function Today({ s, d }: { s: AppState; d: Derived }) {
           </div>
         </section>
 
-        <section class="card d-steps">
-          <div class="card-head"><h2>Steps</h2></div>
-          <div class="big-num"><b>{(log.steps ?? 0).toLocaleString()}</b><span>of {d.stepTarget.toLocaleString()}</span></div>
-          <Bar value={log.steps ?? 0} max={d.stepTarget} />
-          <input type="number" inputMode="numeric" value={log.steps ?? ''} placeholder="Enter today's steps" aria-label="Steps today" onChange={(e) => setSteps(d.today, +(e.target as HTMLInputElement).value)} />
-        </section>
+        {rec.outdoorDays.length > 0 ? (
+          <section class="card d-steps">
+            <div class="card-head"><h2>Steps</h2></div>
+            <div class="big-num"><b>{(log.steps ?? 0).toLocaleString()}</b><span>{outdoorToday ? `of ${d.stepTarget.toLocaleString()}` : 'optional today'}</span></div>
+            {outdoorToday && <Bar value={log.steps ?? 0} max={d.stepTarget} />}
+            <input type="number" inputMode="numeric" value={log.steps ?? ''} placeholder="Enter today's steps" aria-label="Steps today" onChange={(e) => setSteps(d.today, +(e.target as HTMLInputElement).value)} />
+          </section>
+        ) : (
+          <section class="card d-steps">
+            <div class="card-head"><h2>Workouts</h2></div>
+            <div class="big-num"><b>{sessionsDone}</b><span>of {sessionsPlanned} sessions</span></div>
+            <Bar value={sessionsDone} max={Math.max(1, sessionsPlanned)} />
+            <p class="small muted">Workouts and sports you tick off count here.</p>
+          </section>
+        )}
 
         <section class="card d-weight">
           <div class="card-head"><h2>Weight</h2>{d.trendKg !== null && <span class="small muted">{lost >= 0 ? '−' : '+'}{Math.abs(imp ? lost * 2.20462 : lost).toFixed(1)} {imp ? 'lb' : 'kg'} so far</span>}</div>

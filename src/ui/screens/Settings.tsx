@@ -7,7 +7,7 @@ import { getState, replaceState, resetAll, update, type AppState } from '../../s
 import { updateProfile } from '../../store/actions';
 import { Card } from '../common';
 import { ActivityPicker, AllergyPicker, DietPicker, toggle } from '../pickers';
-import { ExerciseEditor, TrainDaysPicker } from '../ExerciseEditor';
+import { ExerciseEditor, ScheduleSettings } from '../ExerciseEditor';
 
 export function Settings({ s, d }: { s: AppState; d: Derived }) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -57,8 +57,8 @@ export function Settings({ s, d }: { s: AppState; d: Derived }) {
         <AllergyPicker hasAllergies={p.hasAllergies} allergens={p.allergens} avoidFoods={p.avoidFoods} onChange={(v) => updateProfile(v)} />
       </Card>
 
-      <Card title="Training days">
-        <TrainDaysPicker value={p.trainDays ?? []} onChange={(v) => updateProfile({ trainDays: v })} />
+      <Card title="Your week">
+        <ScheduleSettings trainDays={p.trainDays ?? []} outdoorDays={p.outdoorDays ?? []} onChange={(patch) => updateProfile(patch)} />
       </Card>
 
       <Card title="Sports you play">

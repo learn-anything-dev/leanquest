@@ -12,7 +12,7 @@ export default defineConfig({
       manifest: {
         name: 'LeanQuest',
         short_name: 'LeanQuest',
-        description: 'Free, offline, bodyweight weight-loss coach',
+        description: 'Home workout, calorie and meal coach for weight loss',
         theme_color: '#0a0a0a',
         background_color: '#fafaf9',
         display: 'standalone',

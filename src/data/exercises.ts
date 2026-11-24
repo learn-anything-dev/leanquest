@@ -87,6 +87,8 @@ export const DAY_PLANS: Pattern[][] = [
   ['squat', 'push', 'pull', 'core'],
   ['hinge', 'lunge', 'push', 'core'],
   ['squat', 'hinge', 'pull', 'push', 'core'],
+  ['push', 'pull', 'lunge', 'core'],
+  ['squat', 'hinge', 'core', 'push'],
 ];
 
 const EQUIP_RANK: Record<Equipment, number> = { none: 0, home: 1, gym: 2 };

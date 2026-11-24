@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { WorkoutItem } from '../../core/types';
-import { cardioPool, recommend, todaysSession, weekdayIndex } from '../../core/training';
+import { HOME_CARDIO, cardioPool, homeCardioPool, recommend, todaysSession, weekdayIndex } from '../../core/training';
 import { DAY_PLANS, RANGES, buildWorkout, type PlannedItem } from '../../data/exercises';
 import { ACTIVITIES } from '../../data/activities';
 import type { Derived } from '../../store/derive';
 import { completeWorkout } from '../../store/actions';
 import type { AppState } from '../../store/store';
 import { Card, Confetti, Chips } from '../common';
-import { ExerciseEditor, TrainDaysPicker, scheduleSummary } from '../ExerciseEditor';
+import { ExerciseEditor, ScheduleSettings, scheduleSummary } from '../ExerciseEditor';
 import { updateProfile } from '../../store/actions';
 
 type Fb = 'easy' | 'right' | 'hard';
@@ -37,7 +37,7 @@ export function Train({ s, d }: { s: AppState; d: Derived }) {
   const [dayPick, setDayPick] = useState(todaySession.kind === 'strength' && todaySession.strengthDay !== undefined ? todaySession.strengthDay : dayIdx);
   const plan = buildWorkout(dayPick, d.profile, s.progression, d.week);
   const scheduledIds = new Set(d.profile.currentExercise.filter((e) => e.days?.length).map((e) => e.id));
-  const pool = cardioPool(d.profile.comfortable, rec.lowImpact, scheduledIds);
+  const pool = rec.outdoorDays.length ? cardioPool(d.profile.comfortable, rec.lowImpact, scheduledIds) : homeCardioPool(d.profile.comfortable, rec.lowImpact, scheduledIds);
   const [editing, setEditing] = useState(false);
   const summary = scheduleSummary(d.profile);
   const cardio = pool[s.workouts.length % pool.length];
@@ -70,7 +70,9 @@ export function Train({ s, d }: { s: AppState; d: Derived }) {
         <div class="grid3 center">
           <div class="kpi"><b>{rec.strengthDays}</b><span>Strength</span></div>
           <div class="kpi"><b>{rec.cardioSessions}</b><span>Cardio</span></div>
-          <div class="kpi"><b>{rec.steps.toLocaleString()}</b><span>Daily steps</span></div>
+          {rec.outdoorDays.length
+            ? <div class="kpi"><b>{rec.steps.toLocaleString()}</b><span>Daily steps</span></div>
+            : <div class="kpi"><b>{rec.weeklyMinutes}</b><span>Min a week</span></div>}
         </div>
         <div class="sched">
           {rec.schedule.map((x, i) => (
@@ -90,14 +92,12 @@ export function Train({ s, d }: { s: AppState; d: Derived }) {
           <div class="summary-lines">
             {summary.sports.length ? summary.sports.map((t) => <div key={t}>{t}</div>) : <div class="muted">No sports added yet</div>}
             <div class="muted">Training days: {summary.days}</div>
+            <div class="muted">Outdoor days: {summary.outdoor}</div>
           </div>
         )}
         {editing && (
           <>
-            <div>
-              <label class="f">Days I can train</label>
-              <TrainDaysPicker value={d.profile.trainDays ?? []} onChange={(v) => updateProfile({ trainDays: v })} />
-            </div>
+            <ScheduleSettings trainDays={d.profile.trainDays ?? []} outdoorDays={d.profile.outdoorDays ?? []} onChange={(patch) => updateProfile(patch)} />
             <div>
               <label class="f">Sports I play</label>
               <ExerciseEditor profile={d.profile} weightKg={d.currentKg} />
@@ -132,7 +132,7 @@ export function Train({ s, d }: { s: AppState; d: Derived }) {
       {doneToday && <div class="banner ok">Already trained today. Rest is part of the plan.</div>}
       <button class="block" onClick={() => setMode('run')} disabled={!plan.length}>▶ Start guided workout</button>
       <details class="card"><summary>Other cardio options</summary>
-        <div class="list">{ACTIVITIES.filter((a) => a.cardio && !(rec.lowImpact && a.impact === 'high')).map((a) => <div class="item" key={a.id}><div><b>{a.name}</b><div class="small muted">{a.how ?? 'Steady, comfortable effort.'}</div></div></div>)}</div>
+        <div class="list">{ACTIVITIES.filter((a) => a.cardio && !(rec.lowImpact && a.impact === 'high') && (rec.outdoorDays.length > 0 || HOME_CARDIO.includes(a.id))).map((a) => <div class="item" key={a.id}><div><b>{a.name}</b><div class="small muted">{a.how ?? 'Steady, comfortable effort.'}</div></div></div>)}</div>
       </details>
       <p class="disclaimer">Stop if you feel sharp pain or dizziness.</p>
     </div>

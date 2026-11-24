@@ -34,6 +34,10 @@ export interface Recommendation {
   sportDays: number[];
   /** Days (Mon = 0) the user said they can train. */
   trainDays: number[];
+  /** Days (Mon = 0) the user can walk or exercise outside. */
+  outdoorDays: number[];
+  /** True when the plan is built around home bodyweight training (few or no outdoor days). */
+  homeFocused: boolean;
 }
 
 export interface CardioPick {
@@ -66,6 +70,27 @@ export function cardioPool(comfortable: string[], lowImpact: boolean, scheduled:
   };
   comfortable.forEach(add);
   for (const fallback of ['walk-brisk', 'cycle-leisure', 'swim-leisure']) {
+    if (picks.length >= 2) break;
+    add(fallback);
+  }
+  return picks;
+}
+
+/** Cardio that needs no venue, equipment or going outside. These are the only cardio ideas for indoor-only days. */
+export const HOME_CARDIO = ['circuit', 'dance-social', 'zumba', 'aerobics-low', 'aerobics-high', 'active-games', 'step-aerobics', 'hiit', 'jump-rope'];
+
+export function homeCardioPool(comfortable: string[], lowImpact: boolean, scheduled: ReadonlySet<string> = new Set()): CardioPick[] {
+  const picks: CardioPick[] = [];
+  const add = (id: string) => {
+    if (picks.some((x) => x.id === id) || scheduled.has(id)) return;
+    const a = getActivity(id);
+    if (!a) return;
+    if (lowImpact && a.impact === 'high') return;
+    picks.push({ id, name: a.name, how: a.how ?? DEFAULT_HOW });
+  };
+  add('circuit');
+  comfortable.filter((id) => HOME_CARDIO.includes(id)).forEach(add);
+  for (const fallback of ['dance-social', 'aerobics-low']) {
     if (picks.length >= 2) break;
     add(fallback);
   }
@@ -116,6 +141,9 @@ function joinDays(idx: number[]): string {
  * Rules the schedule always follows:
  *  - Sports the user scheduled appear exactly on their days and nowhere else.
  *  - Suggested strength and cardio only use days the user can train, and never a day that already has a sport.
+ *  - Home first: without outdoor days the plan is bodyweight strength plus indoor cardio. Walks and outdoor cardio
+ *    appear only on days the user says they can go outside.
+ *  - At least one day a week is rest.
  *  - The same activity is never suggested more than needed, and scheduled sports are never suggested as extra cardio.
  */
 export function recommend(p: Profile, week: number, level: 'Beginner' | 'Intermediate' | 'Expert'): Recommendation {
@@ -130,6 +158,9 @@ export function recommend(p: Profile, week: number, level: 'Beginner' | 'Interme
   if (p.screening.eatingDisorder) mode = 'gentle';
   else if (p.screening.under18) mode = 'youth';
   else if (p.screening.pregnant) mode = 'gentle';
+
+  const outdoorSet = new Set((p.outdoorDays ?? []).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6));
+  const homeFocused = outdoorSet.size <= 2;
 
   let strengthDays: number;
   let cardioSessions: number;
@@ -149,22 +180,30 @@ export function recommend(p: Profile, week: number, level: 'Beginner' | 'Interme
     why.push('Aim for about 60 minutes of active play, sport or walking on most days.');
     cautions.push('Talk to a doctor if you are worried about your weight.');
   } else if (p.choice === 'goal' && feas.plansDiffer) {
-    strengthDays = easeIn ? 2 : 3;
+    strengthDays = homeFocused ? (level === 'Beginner' ? 4 : 5) : easeIn ? 2 : 3;
     cardioSessions = easeIn ? 3 : 4;
     cardioMinutes = clamp(25 + 5 * Math.floor((week - 1) / 2), 25, 45);
     steps = Math.min(10000, stepGoal(p.baselineSteps, 1 + (week - 1) * 2));
-    headline = 'Higher activity to support a faster plan';
-    why.push(`Your goal plan eats ${plan.intake} kcal${plan.atFloor ? ', the lowest the app plans' : ''}, so it counts on about ${steps.toLocaleString()} steps a day plus every workout.`);
+    headline = homeFocused ? 'More work at home to support a faster plan' : 'Higher activity to support a faster plan';
+    why.push(outdoorSet.size
+      ? `Your goal plan eats ${plan.intake} kcal${plan.atFloor ? ', the lowest the app plans' : ''}, so it counts on about ${steps.toLocaleString()} steps a day plus every workout.`
+      : `Your goal plan eats ${plan.intake} kcal${plan.atFloor ? ', the lowest the app plans' : ''}, so it counts on every workout plus extra movement around the house.`);
     cautions.push('Low calories plus high activity can leave you drained. If you feel dizzy or unusually tired, drop a cardio session.');
   } else {
-    strengthDays = easeIn ? 2 : 3;
+    strengthDays = homeFocused ? (level === 'Beginner' ? 4 : 5) : easeIn ? 2 : 3;
     cardioSessions = level === 'Beginner' ? 2 : 3;
     cardioMinutes = clamp(20 + 5 * Math.floor((week - 1) / 2), 20, 40);
-    headline = 'Build strength and walk more';
+    headline = homeFocused ? 'Build strength at home' : 'Build strength and stay active outdoors';
     why.push(`Your plan eats ${plan.intake} kcal${plan.deficit > 0 ? `, ${plan.deficit} below maintenance` : ''}. Training protects your muscle while the deficit does the fat loss.`);
   }
 
   if (p.currentMinutesPerWeek < 30 && easeIn && mode === 'standard') cardioMinutes = Math.max(15, cardioMinutes - 5);
+  if (homeFocused && mode === 'standard') {
+    cardioSessions = Math.min(cardioSessions, 2);
+    why.push(easeIn
+      ? 'A home plan: bodyweight strength most days, with indoor cardio circuits instead of walks. Sessions are short and easy for the first two weeks.'
+      : 'A home plan: bodyweight strength most days, with indoor cardio circuits instead of walks. No equipment needed.');
+  }
   why.push(level === 'Beginner'
     ? 'Moves start easy and step up each time they feel easy.'
     : `You are at ${level.toLowerCase()} level, so moves start harder than the basics.`);
@@ -203,18 +242,23 @@ export function recommend(p: Profile, week: number, level: 'Beginner' | 'Interme
   cardioSessions = Math.max(0, cardioSessions - sportIdx.length);
   if (sportIdx.length) why.unshift(`Your sports on ${joinDays(sportIdx)} are in your week and count as cardio, so I planned fewer extra cardio sessions.`);
 
-  // 3) Strength first, spread across the open days; then cardio on what is left.
-  const strengthIdx = spreadDays(open, Math.min(strengthDays, open.length));
+  // 3) Strength first, spread across the open days; then cardio on what is left. Keep at least one rest day.
+  const MAX_ACTIVE = 6;
+  const strengthIdx = spreadDays(open, Math.min(strengthDays, open.length, Math.max(0, MAX_ACTIVE - sportIdx.length)));
   const afterStrength = open.filter((d) => !strengthIdx.includes(d));
-  const cardioIdx = spreadDays(afterStrength, Math.min(cardioSessions, afterStrength.length));
+  const cardioRoom = Math.max(0, MAX_ACTIVE - sportIdx.length - strengthIdx.length);
+  const cardioIdx = spreadDays(afterStrength, Math.min(cardioSessions, afterStrength.length, cardioRoom));
   const leftover = afterStrength.filter((d) => !cardioIdx.includes(d));
   const outsideTrainDays = ALL_DAYS.filter((d) => !trainDays.includes(d) && !sportByDay.has(d));
-  // One rest day: days the user cannot train are rest days already; otherwise rest on Sunday if free, else the last free day.
-  const restIdx = outsideTrainDays.length ? -1 : leftover.length ? (leftover.includes(6) ? 6 : leftover[leftover.length - 1]) : -1;
+  // Rest days: days the user cannot train, plus unused indoor-only days. If that leaves none, rest on Sunday or the last free day.
+  const restSet = new Set<number>([...outsideTrainDays, ...leftover.filter((d) => !outdoorSet.has(d))]);
+  if (!restSet.size && leftover.length) restSet.add(leftover.includes(6) ? 6 : leftover[leftover.length - 1]);
 
-  const pool = cardioPool(p.comfortable, lowImpact, scheduledIds);
+  const poolOutdoor = cardioPool(p.comfortable, lowImpact, scheduledIds);
+  const poolHome = homeCardioPool(p.comfortable, lowImpact, scheduledIds);
   let s = 0;
-  let c = 0;
+  let cOut = 0;
+  let cHome = 0;
   const schedule: ScheduleDay[] = DAYS.map((day, i) => {
     const sport = sportByDay.get(i);
     if (sport) {
@@ -226,12 +270,12 @@ export function recommend(p: Profile, week: number, level: 'Beginner' | 'Interme
       return { day, kind: 'strength', source: 'plan', title: `Strength · Day ${n + 1}`, detail: DAY_PLANS[n].map((x) => PATTERN_NAME[x]).join(', '), strengthDay: n };
     }
     if (cardioIdx.includes(i)) {
-      const opt = pool[c++ % pool.length];
+      const opt = outdoorSet.has(i) ? poolOutdoor[cOut++ % poolOutdoor.length] : poolHome[cHome++ % poolHome.length];
       const kcal = Math.round(activityKcal(opt.id, p.startWeightKg, cardioMinutes) / 10) * 10;
       return { day, kind: 'cardio', source: 'plan', title: opt.name, detail: `${cardioMinutes} min · about ${kcal} kcal` };
     }
     if (outsideTrainDays.includes(i)) return { day, kind: 'rest', source: 'plan', title: 'Rest', detail: 'Not a training day' };
-    if (i === restIdx) return { day, kind: 'rest', source: 'plan', title: 'Rest', detail: 'Easy stretch if you like' };
+    if (restSet.has(i)) return { day, kind: 'rest', source: 'plan', title: 'Rest', detail: outdoorSet.has(i) ? 'Easy stretch if you like' : 'Rest or light stretching at home' };
     return { day, kind: 'walk', source: 'plan', title: 'Walk', detail: `${steps.toLocaleString()} steps` };
   });
 
@@ -239,6 +283,7 @@ export function recommend(p: Profile, week: number, level: 'Beginner' | 'Interme
     mode, headline, why, strengthDays: strengthIdx.length, cardioSessions: cardioIdx.length, cardioMinutes, steps,
     weeklyMinutes: Math.round(strengthIdx.length * 30 + cardioIdx.length * cardioMinutes + sportMinutes),
     intensity, lowImpact, schedule, cautions, sportDays: sportIdx, trainDays,
+    outdoorDays: [...outdoorSet].sort((x, y) => x - y), homeFocused,
   };
 }
 
